@@ -92,6 +92,10 @@ namespace BestHTTP.Examples
                 .OnSuccess(result => uiText += string.Format(" 'Add(10, 20)' returned: {0}\n", result))
                 .OnError(error => uiText += string.Format(" 'Add(10, 20)' error: {0}\n", error));
 
+            hub.Invoke<int?>("NullableTest", 10)
+                .OnSuccess(result => uiText += string.Format(" 'NullableTest(10)' returned: {0}\n", result))
+                .OnError(error => uiText += string.Format(" 'NullableTest(10)' error: {0}\n", error));
+
             // Call a function that will return a Person object constructed from the function's parameters.
             hub.Invoke<Person>("GetPerson", "Mr. Smith", 26)
                 .OnSuccess(result => uiText += string.Format(" 'GetPerson(\"Mr. Smith\", 26)' returned: {0}\n", result))

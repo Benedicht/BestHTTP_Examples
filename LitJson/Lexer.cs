@@ -17,7 +17,7 @@ using System.Text;
 
 namespace LitJson
 {
-    internal class FsmContext
+    internal sealed class FsmContext
     {
         public bool  Return;
         public int   NextState;
@@ -26,7 +26,7 @@ namespace LitJson
     }
 
 
-    internal class Lexer
+    internal sealed class Lexer
     {
         #region Fields
         private delegate bool StateHandler (FsmContext ctx);

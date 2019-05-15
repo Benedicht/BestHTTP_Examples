@@ -11,7 +11,7 @@ namespace BestHTTP.Examples
         /// <summary>
         /// The url of the resource to download
         /// </summary>
-        const string URL = "http://uk3.testmy.net/dl-102400";
+        const string URL = "https://uk3.testmy.net/dl-102400";
 
         #region Private Fields
 
@@ -196,7 +196,7 @@ namespace BestHTTP.Examples
                 // This is a new request
                 PlayerPrefs.SetInt("DownloadProgress", 0);
 
-#if !BESTHTTP_DISABLE_CACHING && (!UNITY_WEBGL || UNITY_EDITOR)
+#if !BESTHTTP_DISABLE_CACHING
             // If we are writing our own file set it true(disable), so don't duplicate it on the file-system
             request.DisableCache = true;
 #endif

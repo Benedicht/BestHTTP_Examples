@@ -94,7 +94,7 @@ namespace BestHTTP.Examples
 
                     if (request.Response.IsSuccess)
                     {
-#if !BESTHTTP_DISABLE_CACHING && (!UNITY_WEBGL || UNITY_EDITOR)
+#if !BESTHTTP_DISABLE_CACHING
                         status = string.Format("AssetBundle downloaded! Loaded from local cache: {0}", request.Response.IsFromCache.ToString());
 #else
                         status = "AssetBundle downloaded!";

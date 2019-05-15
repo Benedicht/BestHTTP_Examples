@@ -98,23 +98,27 @@ namespace BestHTTP.Examples
 #if !BESTHTTP_DISABLE_SIGNALR_CORE
             Samples.Add(new SampleDescriptor(null, "SignalR Core Samples", string.Empty) { IsLabel = true });
             Samples.Add(new SampleDescriptor(typeof(TestHubExample), "Hub Sample", "This sample demonstrates most of the functionalities of the SignalR protocol:\n-How to set up HubConnection to connect to the server\n-Subscribing to server-callable function\n-Calling client-callable function on the server\n-Calling and handling streaming\n"));
-            Samples.Add(new SampleDescriptor(typeof(HubWithAuthorizationSample), "Hub Authentication Sample", "\n"));
-            Samples.Add(new SampleDescriptor(typeof(HubWithPreAuthorizationSample), "Hub Pre-Authentication Sample", "\n"));
-            Samples.Add(new SampleDescriptor(typeof(RedirectSample), "Hub Redirect Sample", "\n"));
+            Samples.Add(new SampleDescriptor(typeof(HubWithAuthorizationSample), "Hub Authentication Sample", "This sample demonstrates the default access token authentication. The server sends a JWT token to the client with a new url. The client will connect to that new url and sends the JWT token.\n"));
+            Samples.Add(new SampleDescriptor(typeof(HubWithPreAuthorizationSample), "Hub Pre-Authentication Sample", "This sample demonstrates manual authentication.\n"));
+            Samples.Add(new SampleDescriptor(typeof(RedirectSample), "Hub Redirect Sample", "This sample demonstrates how the plugin handles redirection through the SignalR Core negotiation data.\n"));
+            Samples.Add(new SampleDescriptor(typeof(UploadHubSample), "Hub Upload Sample", "This sample demonstrates client -> server streaming capabilities introduced in asp.net core 3.\n"));
 #endif
 
-#if (!BESTHTTP_DISABLE_SIGNALR && !UNITY_WEBGL) || UNITY_EDITOR
+#if !BESTHTTP_DISABLE_SIGNALR && (!UNITY_WEBGL || UNITY_EDITOR)
             Samples.Add(new SampleDescriptor(null, "SignalR Samples", string.Empty) { IsLabel = true });
             Samples.Add(new SampleDescriptor(typeof(SimpleStreamingSample), "Simple Streaming", "A very simple example of a background thread that broadcasts the server time to all connected clients every two seconds.\n\nFeatures demoed in this example:\n-Subscribing and handling non-hub messages"));
             Samples.Add(new SampleDescriptor(typeof(ConnectionAPISample), "Connection API", "Demonstrates all features of the lower-level connection API including starting and stopping, sending and receiving messages, and managing groups.\n\nFeatures demoed in this example:\n-Instantiating and setting up a SignalR Connection to connect to a SignalR server\n-Changing the default Json encoder\n-Subscribing to state changes\n-Receiving and handling of non-hub messages\n-Sending non-hub messages\n-Managing groups"));
             Samples.Add(new SampleDescriptor(typeof(ConnectionStatusSample), "Connection Status", "Demonstrates how to handle the events that are raised when connections connect, reconnect and disconnect from the Hub API.\n\nFeatures demoed in this example:\n-Connecting to a Hub\n-Setting up a callback for Hub events\n-Handling server-sent method call requests\n-Calling a Hub-method on the server-side\n-Opening and closing the SignalR Connection"));
             Samples.Add(new SampleDescriptor(typeof(DemoHubSample), "Demo Hub", "A contrived example that exploits every feature of the Hub API.\n\nFeatures demoed in this example:\n-Creating and using wrapper Hub classes to encapsulate hub functions and events\n-Handling long running server-side functions by handling progress messages\n-Groups\n-Handling server-side functions with return value\n-Handling server-side functions throwing Exceptions\n-Calling server-side functions with complex type parameters\n-Calling server-side functions with array parameters\n-Calling overloaded server-side functions\n-Changing Hub states\n-Receiving and handling hub state changes\n-Calling server-side functions implemented in VB .NET"));
-#if !UNITY_WEBGL || UNITY_EDITOR
             Samples.Add(new SampleDescriptor(typeof(AuthenticationSample), "Authentication", "Demonstrates how to use the authorization features of the Hub API to restrict certain Hubs and methods to specific users.\n\nFeatures demoed in this example:\n-Creating and using wrapper Hub classes to encapsulate hub functions and events\n-Create and use a Header-based authenticator to access protected APIs\n-SignalR over HTTPS"));
 #endif
+
+#if !BESTHTTP_DISABLE_SERVERSENT_EVENTS
+            Samples.Add(new SampleDescriptor(null, "Server-Sent Events", string.Empty) { IsLabel = true });
+            Samples.Add(new SampleDescriptor(typeof(SimpleTest), "Simple Sample", ""));
 #endif
 
-#if !BESTHTTP_DISABLE_CACHING && (!UNITY_WEBGL || UNITY_EDITOR)
+#if !BESTHTTP_DISABLE_CACHING
             Samples.Add(new SampleDescriptor(null, "Plugin Samples", string.Empty) { IsLabel = true });
             Samples.Add(new SampleDescriptor(typeof(CacheMaintenanceSample), "Cache Maintenance", "With this demo you can see how you can use the HTTPCacheService's BeginMaintainence function to delete too old cached entities and keep the cache size under a specified value.\n\nFeatures demoed in this example:\n-How to set up a HTTPCacheMaintananceParams\n-How to call the BeginMaintainence function"));
 #endif
@@ -165,14 +169,14 @@ namespace BestHTTP.Examples
                 {
                     GUIHelper.DrawCenteredText("Cache");
 
-#if !BESTHTTP_DISABLE_CACHING && (!UNITY_WEBGL || UNITY_EDITOR)
+#if !BESTHTTP_DISABLE_CACHING
                 if (!BestHTTP.Caching.HTTPCacheService.IsSupported)
                     {
 #endif
                     GUI.color = Color.yellow;
                         GUIHelper.DrawCenteredText("Disabled in WebPlayer, WebGL & Samsung Smart TV Builds!");
                         GUI.color = Color.white;
-#if !BESTHTTP_DISABLE_CACHING && (!UNITY_WEBGL || UNITY_EDITOR)
+#if !BESTHTTP_DISABLE_CACHING
                 }
                     else
                     {

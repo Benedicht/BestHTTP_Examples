@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using BestHTTP;
 
-#if !BESTHTTP_DISABLE_CACHING && (!UNITY_WEBGL || UNITY_EDITOR)
+#if !BESTHTTP_DISABLE_CACHING
   using BestHTTP.Caching;
 #endif
 
@@ -25,7 +25,7 @@ namespace BestHTTP.Examples
 
         #region Private Fields
 
-#if !BESTHTTP_DISABLE_CACHING && (!UNITY_WEBGL || UNITY_EDITOR)
+#if !BESTHTTP_DISABLE_CACHING
         /// <summary>
         /// What methode to call on the TimeSpan
         /// </summary>
@@ -50,7 +50,7 @@ namespace BestHTTP.Examples
         {
             GUIHelper.DrawArea(GUIHelper.ClientArea, true, () =>
                 {
-#if !BESTHTTP_DISABLE_CACHING && (!UNITY_WEBGL || UNITY_EDITOR)
+#if !BESTHTTP_DISABLE_CACHING
                 GUILayout.BeginHorizontal();
 
                     GUILayout.Label("Delete cached entities older then");

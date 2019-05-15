@@ -39,7 +39,7 @@ namespace LitJson
     }
 
 
-    public class JsonReader
+    public sealed class JsonReader
     {
         #region Fields
         private static IDictionary<int, IDictionary<int, int[]>> parse_table;

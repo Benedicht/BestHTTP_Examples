@@ -25,7 +25,7 @@ namespace BestHTTP.Examples
         /// </summary>
         Texture2D[] Textures = new Texture2D[9];
 
-#if !BESTHTTP_DISABLE_CACHING && (!UNITY_WEBGL || UNITY_EDITOR)
+#if !BESTHTTP_DISABLE_CACHING
         /// <summary>
         /// True if all images are loaded from the local cache instead of the server
         /// </summary>
@@ -72,7 +72,7 @@ namespace BestHTTP.Examples
                 // Draw out the textures
                 GUILayout.SelectionGrid(0, Textures, 3);
 
-#if !BESTHTTP_DISABLE_CACHING && (!UNITY_WEBGL || UNITY_EDITOR)
+#if !BESTHTTP_DISABLE_CACHING
                     if (finishedCount == Images.Length && allDownloadedFromLocalCache)
                         GUIHelper.DrawCenteredText("All images loaded from the local cache!");
 #endif
@@ -99,7 +99,7 @@ namespace BestHTTP.Examples
         void DownloadImages()
         {
             // Set these metadatas to its initial values
-#if !BESTHTTP_DISABLE_CACHING && (!UNITY_WEBGL || UNITY_EDITOR)
+#if !BESTHTTP_DISABLE_CACHING
             allDownloadedFromLocalCache = true;
 #endif
             finishedCount = 0;
@@ -140,7 +140,7 @@ namespace BestHTTP.Examples
                         // Load the texture
                         tex.LoadImage(resp.Data);
 
-#if !BESTHTTP_DISABLE_CACHING && (!UNITY_WEBGL || UNITY_EDITOR)
+#if !BESTHTTP_DISABLE_CACHING
                         // Update the cache-info variable
                         allDownloadedFromLocalCache = allDownloadedFromLocalCache && resp.IsFromCache;
 #endif

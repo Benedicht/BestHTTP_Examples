@@ -100,7 +100,7 @@ namespace LitJson
     public delegate IJsonWrapper WrapperFactory ();
 
 
-    public class JsonMapper
+    public sealed class JsonMapper
     {
         #region Fields
         private static int max_nesting_depth;

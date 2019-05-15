@@ -112,7 +112,7 @@ namespace BestHTTP.SignalR.Authentication
                     HTTPManager.Logger.Warning("CookieAuthentication", failReason = "Request Aborted!");
                     break;
 
-                // Ceonnecting to the server is timed out.
+                // Connecting to the server is timed out.
                 case HTTPRequestStates.ConnectionTimedOut:
                     HTTPManager.Logger.Error("CookieAuthentication", failReason = "Connection Timed Out!");
                     break;
