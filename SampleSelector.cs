@@ -115,7 +115,7 @@ namespace BestHTTP.Examples
 
 #if !BESTHTTP_DISABLE_SERVERSENT_EVENTS
             Samples.Add(new SampleDescriptor(null, "Server-Sent Events", string.Empty) { IsLabel = true });
-            Samples.Add(new SampleDescriptor(typeof(SimpleTest), "Simple Sample", ""));
+            Samples.Add(new SampleDescriptor(typeof(SimpleTest), "Simple Sample", "Simple Server-Sent Events sample to demonstrate setup and basic message handling."));
 #endif
 
 #if !BESTHTTP_DISABLE_CACHING

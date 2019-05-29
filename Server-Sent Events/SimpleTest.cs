@@ -112,10 +112,12 @@ namespace BestHTTP.Examples
         }
     }
 
-    class DateTimeData
+    sealed class DateTimeData
     {
+#pragma warning disable 0649
         public int eventid;
         public string datetime;
+#pragma warning restore
 
         public override string ToString()
         {
