@@ -2,122 +2,94 @@
 using System.Collections.Generic;
 
 using UnityEngine;
+using UnityEngine.UI;
 using BestHTTP;
 
-namespace BestHTTP.Examples
+namespace BestHTTP.Examples.HTTP
 {
-    public sealed class TextureDownloadSample : MonoBehaviour
+    public sealed class TextureDownloadSample : BestHTTP.Examples.Helpers.SampleBase
     {
-        /// <summary>
-        /// The URL of the server that will serve the image resources
-        /// </summary>
-        string BaseURL = GUIHelper.BaseURL + "/images/Demo/";
+#pragma warning disable 0649
+        [Header("Texture Download Example")]
 
-        #region Private Fields
+        [Tooltip("The URL of the server that will serve the image resources")]
+        [SerializeField]
+        private string _path = "/images/Demo/";
 
-        /// <summary>
-        /// The downloadable images
-        /// </summary>
-        string[] Images = new string[9] { "One.png", "Two.png", "Three.png", "Four.png", "Five.png", "Six.png", "Seven.png", "Eight.png", "Nine.png" };
+        [Tooltip("The downloadable images")]
+        [SerializeField]
+        private string[] _imageNames = new string[9] { "One.png", "Two.png", "Three.png", "Four.png", "Five.png", "Six.png", "Seven.png", "Eight.png", "Nine.png" };
 
-        /// <summary>
-        /// The downloaded images will be stored as textures in this array
-        /// </summary>
-        Texture2D[] Textures = new Texture2D[9];
+        [SerializeField]
+        private RawImage[] _images = new RawImage[0];
 
-#if !BESTHTTP_DISABLE_CACHING
-        /// <summary>
-        /// True if all images are loaded from the local cache instead of the server
-        /// </summary>
-        bool allDownloadedFromLocalCache;
-#endif
+        [SerializeField]
+        private Text _maxConnectionPerServerLabel;
 
-        /// <summary>
-        /// How many sent requests are finished
-        /// </summary>
-        int finishedCount;
+        [SerializeField]
+        private Text _cacheLabel;
 
-        /// <summary>
-        /// GUI scroll position
-        /// </summary>
-        Vector2 scrollPos;
+#pragma warning restore
 
-        #endregion
+        private byte savedMaxConnectionPerServer;
 
-        #region Unity Events
+        private bool allDownloadedFromLocalCache;
 
-        void Awake()
+        private List<HTTPRequest> activeRequests = new List<HTTPRequest>();
+
+        protected override void Start()
         {
+            base.Start();
+
+            this.savedMaxConnectionPerServer = HTTPManager.MaxConnectionPerServer;
+
             // Set a well observable value
             // This is how many concurrent requests can be made to a server
             HTTPManager.MaxConnectionPerServer = 1;
 
-            // Create placeholder textures
-            for (int i = 0; i < Images.Length; ++i)
-                Textures[i] = new Texture2D(100, 150);
+            this._maxConnectionPerServerLabel.text = HTTPManager.MaxConnectionPerServer.ToString();
         }
-
+        
         void OnDestroy()
         {
             // Set back to its defualt value.
-            HTTPManager.MaxConnectionPerServer = 4;
+            HTTPManager.MaxConnectionPerServer = this.savedMaxConnectionPerServer;
+            foreach (var request in this.activeRequests)
+                request.Abort();
+            this.activeRequests.Clear();
         }
 
-        void OnGUI()
+        public void OnMaxConnectionPerServerChanged(float value)
         {
-            GUIHelper.DrawArea(GUIHelper.ClientArea, true, () =>
-                {
-                    scrollPos = GUILayout.BeginScrollView(scrollPos);
-
-                // Draw out the textures
-                GUILayout.SelectionGrid(0, Textures, 3);
-
-#if !BESTHTTP_DISABLE_CACHING
-                    if (finishedCount == Images.Length && allDownloadedFromLocalCache)
-                        GUIHelper.DrawCenteredText("All images loaded from the local cache!");
-#endif
-
-                    GUILayout.FlexibleSpace();
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Max Connection/Server: ", GUILayout.Width(150));
-                    GUILayout.Label(HTTPManager.MaxConnectionPerServer.ToString(), GUILayout.Width(20));
-                    HTTPManager.MaxConnectionPerServer = (byte)GUILayout.HorizontalSlider(HTTPManager.MaxConnectionPerServer, 1, 10);
-                    GUILayout.EndHorizontal();
-
-                    if (GUILayout.Button("Start Download"))
-                        DownloadImages();
-
-                    GUILayout.EndScrollView();
-                });
+            HTTPManager.MaxConnectionPerServer = (byte)Mathf.RoundToInt(value);
+            this._maxConnectionPerServerLabel.text = HTTPManager.MaxConnectionPerServer.ToString();
         }
 
-        #endregion
-
-        #region Private Helper Functions
-
-        void DownloadImages()
+        public void DownloadImages()
         {
             // Set these metadatas to its initial values
 #if !BESTHTTP_DISABLE_CACHING
             allDownloadedFromLocalCache = true;
 #endif
-            finishedCount = 0;
-
-            for (int i = 0; i < Images.Length; ++i)
+            
+            for (int i = 0; i < _imageNames.Length; ++i)
             {
                 // Set a blank placeholder texture, overriding previously downloaded texture
-                Textures[i] = new Texture2D(100, 150);
+                this._images[i].texture = null;
 
                 // Construct the request
-                var request = new HTTPRequest(new Uri(BaseURL + Images[i]), ImageDownloaded);
+                var request = new HTTPRequest(new Uri(this.sampleSelector.CDNUrl + this._path + this._imageNames[i]), ImageDownloaded);
 
                 // Set the Tag property, we can use it as a general storage bound to the request
-                request.Tag = Textures[i];
+                request.Tag = this._images[i];
 
                 // Send out the request
                 request.Send();
+
+                this.activeRequests.Add(request);
             }
+
+            this._cacheLabel.text = string.Empty;
         }
 
         /// <summary>
@@ -125,20 +97,15 @@ namespace BestHTTP.Examples
         /// </summary>
         void ImageDownloaded(HTTPRequest req, HTTPResponse resp)
         {
-            // Increase the finished count regardless of the state of our request
-            finishedCount++;
-
             switch (req.State)
             {
                 // The request finished without any problem.
                 case HTTPRequestStates.Finished:
                     if (resp.IsSuccess)
                     {
-                        // Get the Texture from the Tag property
-                        Texture2D tex = req.Tag as Texture2D;
-
-                        // Load the texture
-                        tex.LoadImage(resp.Data);
+                        // The target RawImage reference is stored in the Tag property
+                        RawImage rawImage = req.Tag as RawImage;
+                        rawImage.texture = resp.DataAsTexture2D;
 
 #if !BESTHTTP_DISABLE_CACHING
                         // Update the cache-info variable
@@ -174,8 +141,15 @@ namespace BestHTTP.Examples
                     Debug.LogError("Processing the request Timed Out!");
                     break;
             }
-        }
 
-        #endregion
+            this.activeRequests.Remove(req);
+            if (this.activeRequests.Count == 0)
+            {
+                if (this.allDownloadedFromLocalCache)
+                    this._cacheLabel.text = "All images loaded from local cache!";
+                else
+                    this._cacheLabel.text = string.Empty;
+            }
+        }
     }
 }

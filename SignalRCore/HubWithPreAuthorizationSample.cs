@@ -1,59 +1,53 @@
 ﻿#if !BESTHTTP_DISABLE_SIGNALR_CORE
 
 using BestHTTP;
+using BestHTTP.Examples.Helpers;
 using BestHTTP.SignalRCore;
 using BestHTTP.SignalRCore.Encoders;
 using System;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace BestHTTP.Examples
 {
-    public sealed class HubWithPreAuthorizationSample : MonoBehaviour
+    public sealed class HubWithPreAuthorizationSample : BestHTTP.Examples.Helpers.SampleBase
     {
-        // Server uri to connect to
-        readonly Uri URI = new Uri(GUIHelper.BaseURL + "/HubWithAuthorization");
-        readonly Uri AuthURI = new Uri(GUIHelper.BaseURL + "/generateJwtToken");
+#pragma warning disable 0649
+
+        [SerializeField]
+        private string _hubPath = "/HubWithAuthorization";
+
+        [SerializeField]
+        private string _jwtTokenPath = "/generateJwtToken";
+
+        [SerializeField]
+        private ScrollRect _scrollRect;
+
+        [SerializeField]
+        private RectTransform _contentRoot;
+
+        [SerializeField]
+        private TextListItem _listItemPrefab;
+
+        [SerializeField]
+        private int _maxListItemEntries = 100;
+
+        [SerializeField]
+        private Button _connectButton;
+
+        [SerializeField]
+        private Button _closeButton;
+
+#pragma warning restore
 
         // Instance of the HubConnection
         HubConnection hub;
 
-        Vector2 scrollPos;
-        string uiText;
-
-        void Start()
+        protected override void Start()
         {
-            // Server side of this example can be found here:
-            // https://github.com/Benedicht/BestHTTP_DemoSite/blob/master/BestHTTP_DemoSite/Hubs/
+            base.Start();
 
-            // Crete the HubConnection
-            hub = new HubConnection(URI, new JsonProtocol(new LitJsonEncoder()));
-            hub.AuthenticationProvider = new PreAuthAccessTokenAuthenticator(AuthURI);
-            hub.AuthenticationProvider.OnAuthenticationSucceded += AuthenticationProvider_OnAuthenticationSucceded;
-            hub.AuthenticationProvider.OnAuthenticationFailed += AuthenticationProvider_OnAuthenticationFailed;
-
-            // Subscribe to hub events
-            hub.OnConnected += Hub_OnConnected;
-            hub.OnError += Hub_OnError;
-            hub.OnClosed += Hub_OnClosed;
-
-            hub.OnMessage += Hub_OnMessage;
-
-            // And finally start to connect to the server
-            hub.StartConnect();
-
-            uiText = "StartConnect called\n";
-        }
-
-        private void AuthenticationProvider_OnAuthenticationSucceded(IAuthenticationProvider provider)
-        {
-            string str = string.Format("Pre-Authentication Succeded! Token: '{0}' \n", (hub.AuthenticationProvider as PreAuthAccessTokenAuthenticator).Token);
-            Debug.Log(str);
-            uiText += str;
-        }
-
-        private void AuthenticationProvider_OnAuthenticationFailed(IAuthenticationProvider provider, string reason)
-        {
-            uiText += string.Format("Authentication Failed! Reason: '{0}'\n", reason);
+            SetButtons(true, false);
         }
 
         void OnDestroy()
@@ -62,19 +56,52 @@ namespace BestHTTP.Examples
                 hub.StartClose();
         }
 
-        // Draw the text stored in the 'uiText' field
-        void OnGUI()
+        public void OnConnectButton()
         {
-            GUIHelper.DrawArea(GUIHelper.ClientArea, true, () =>
+            // Server side of this example can be found here:
+            // https://github.com/Benedicht/BestHTTP_DemoSite/blob/master/BestHTTP_DemoSite/Hubs/
+
+            // Crete the HubConnection
+            hub = new HubConnection(new Uri(base.sampleSelector.BaseURL + this._hubPath), new JsonProtocol(new LitJsonEncoder()));
+
+            hub.AuthenticationProvider = new PreAuthAccessTokenAuthenticator(new Uri(base.sampleSelector.BaseURL + this._jwtTokenPath));
+
+            hub.AuthenticationProvider.OnAuthenticationSucceded += AuthenticationProvider_OnAuthenticationSucceded;
+            hub.AuthenticationProvider.OnAuthenticationFailed += AuthenticationProvider_OnAuthenticationFailed;
+
+            // Subscribe to hub events
+            hub.OnConnected += Hub_OnConnected;
+            hub.OnError += Hub_OnError;
+            hub.OnClosed += Hub_OnClosed;
+
+            // And finally start to connect to the server
+            hub.StartConnect();
+
+            AddText("StartConnect called");
+            SetButtons(false, false);
+        }
+
+        public void OnCloseButton()
+        {
+            if (hub != null)
             {
-                scrollPos = GUILayout.BeginScrollView(scrollPos, false, false);
-                GUILayout.BeginVertical();
+                hub.StartClose();
 
-                GUILayout.Label(uiText);
+                AddText("StartClose called");
+                SetButtons(false, false);
+            }
+        }
 
-                GUILayout.EndVertical();
-                GUILayout.EndScrollView();
-            });
+        private void AuthenticationProvider_OnAuthenticationSucceded(IAuthenticationProvider provider)
+        {
+            string str = string.Format("Pre-Authentication Succeded! Token: '<color=green>{0}</color>' ", (hub.AuthenticationProvider as PreAuthAccessTokenAuthenticator).Token);
+
+            AddText(str);
+        }
+
+        private void AuthenticationProvider_OnAuthenticationFailed(IAuthenticationProvider provider, string reason)
+        {
+            AddText(string.Format("Authentication Failed! Reason: '{0}'", reason));
         }
 
         /// <summary>
@@ -82,21 +109,15 @@ namespace BestHTTP.Examples
         /// </summary>
         private void Hub_OnConnected(HubConnection hub)
         {
-            uiText += "Hub Connected\n";
+            AddText("Hub Connected");
+            SetButtons(false, true);
 
             // Call a parameterless function. We expect a string return value.
             hub.Invoke<string>("Echo", "Message from the client")
-                .OnSuccess(ret => uiText += string.Format(" 'Echo' returned: '{0}'\n", ret));
-        }
+                .OnSuccess(ret => AddText(string.Format("'Echo' returned: '<color=yellow>{0}</color>'", ret)).AddLeftPadding(20));
 
-        /// <summary>
-        /// This callback is called for every hub message. If false is returned, the plugin will cancel any further processing of the message.
-        /// </summary>
-        private bool Hub_OnMessage(HubConnection hub, BestHTTP.SignalRCore.Messages.Message message)
-        {
-            //uiText += string.Format("( Message received: {0} )\n", message.ToString());
-
-            return true;
+            AddText("'<color=green>Message from the client</color>' sent!")
+                .AddLeftPadding(20);
         }
 
         /// <summary>
@@ -104,7 +125,8 @@ namespace BestHTTP.Examples
         /// </summary>
         private void Hub_OnClosed(HubConnection hub)
         {
-            uiText += "Hub Closed\n";
+            AddText("Hub Closed");
+            SetButtons(true, false);
         }
 
         /// <summary>
@@ -112,7 +134,22 @@ namespace BestHTTP.Examples
         /// </summary>
         private void Hub_OnError(HubConnection hub, string error)
         {
-            uiText += "Hub Error: " + error + "\n";
+            AddText(string.Format("Hub Error: <color=red>{0}</color>", error));
+            SetButtons(true, false);
+        }
+
+        private void SetButtons(bool connect, bool close)
+        {
+            if (this._connectButton != null)
+                this._connectButton.interactable = connect;
+
+            if (this._closeButton != null)
+                this._closeButton.interactable = close;
+        }
+
+        private TextListItem AddText(string text)
+        {
+            return GUIHelper.AddText(this._listItemPrefab, this._contentRoot, text, this._maxListItemEntries, this._scrollRect);
         }
     }
 
@@ -172,7 +209,7 @@ namespace BestHTTP.Examples
 
                 // The request finished with an unexpected error. The request's Exception property may contain more info about the error.
                 case HTTPRequestStates.Error:
-                    AuthenticationFailed("Request Finished with Error! " + (req.Exception != null ? (req.Exception.Message + "\n" + req.Exception.StackTrace) : "No Exception"));
+                    AuthenticationFailed("Request Finished with Error! " + (req.Exception != null ? (req.Exception.Message + "" + req.Exception.StackTrace) : "No Exception"));
                     break;
 
                 // The request aborted, initiated by the user.

@@ -5,50 +5,68 @@ using System.Collections.Generic;
 
 using UnityEngine;
 using BestHTTP.SocketIO;
+using UnityEngine.UI;
+using BestHTTP.Examples.Helpers;
 
 namespace BestHTTP.Examples
 {
-    public sealed class SocketIOChatSample : MonoBehaviour
+    public sealed class SocketIOChatSample : BestHTTP.Examples.Helpers.SampleBase
     {
         private readonly TimeSpan TYPING_TIMER_LENGTH = TimeSpan.FromMilliseconds(700);
 
-        private enum ChatStates
-        {
-            Login,
-            Chat
-        }
+#pragma warning disable 0649, 0414
 
-        #region Fields
+        [SerializeField]
+        [Tooltip("The WebSocket address to connect")]
+        private string address = "https://socket-io-chat.now.sh/socket.io/";
 
+        [Header("Login Details")]
+        [SerializeField]
+        private RectTransform _loginRoot;
+
+        [SerializeField]
+        private InputField _userNameInput;
+
+        [Header("Chat Setup")]
+
+        [SerializeField]
+        private RectTransform _chatRoot;
+
+        [SerializeField]
+        private Text _participantsText;
+
+        [SerializeField]
+        private ScrollRect _scrollRect;
+
+        [SerializeField]
+        private RectTransform _contentRoot;
+
+        [SerializeField]
+        private TextListItem _listItemPrefab;
+
+        [SerializeField]
+        private int _maxListItemEntries = 100;
+
+        [SerializeField]
+        private Text _typingUsersText;
+
+        [SerializeField]
+        private InputField _input;
+
+        [Header("Buttons")]
+
+        [SerializeField]
+        private Button _connectButton;
+
+        [SerializeField]
+        private Button _closeButton;
+
+#pragma warning restore
+        
         /// <summary>
         /// The Socket.IO manager instance.
         /// </summary>
         private SocketManager Manager;
-
-        /// <summary>
-        /// Current state of the chat demo.
-        /// </summary>
-        private ChatStates State;
-
-        /// <summary>
-        /// The selected nickname
-        /// </summary>
-        private string userName = string.Empty;
-
-        /// <summary>
-        /// Currently typing message
-        /// </summary>
-        private string message = string.Empty;
-
-        /// <summary>
-        /// Sent and received messages.
-        /// </summary>
-        private string chatLog = string.Empty;
-
-        /// <summary>
-        /// Position of the scroller
-        /// </summary>
-        private Vector2 scrollPos;
 
         /// <summary>
         /// True if the user is currently typing
@@ -65,22 +83,64 @@ namespace BestHTTP.Examples
         /// </summary>
         private List<string> typingUsers = new List<string>();
 
-        #endregion
-
         #region Unity Events
 
-        void Start()
+        protected override void Start()
         {
-            // The current state is Login
-            State = ChatStates.Login;
+            base.Start();
 
-            // Change an option to show how it should be done
-            SocketOptions options = new SocketOptions();
-            options.AutoConnect = false;
-            options.ConnectWith = BestHTTP.SocketIO.Transports.TransportTypes.WebSocket;
+            this._userNameInput.text = PlayerPrefs.GetString("SocketIOChatSample_UserName");
+            SetButtons(!string.IsNullOrEmpty(this._userNameInput.text), false);
+            SetPanels(true);
+        }
+
+        void OnDestroy()
+        {
+            if (this.Manager != null)
+            {
+                // Leaving this sample, close the socket
+                this.Manager.Close();
+                this.Manager = null;
+            }
+        }
+
+        public void OnUserNameInputChanged(string userName)
+        {
+            SetButtons(!string.IsNullOrEmpty(userName), false);
+        }
+
+        public void OnUserNameInputSubmit(string userName)
+        {
+            if (Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Return))
+                OnConnectButton();
+        }
+
+        public void OnConnectButton()
+        {
+            SetPanels(false);
+            
+            PlayerPrefs.SetString("SocketIOChatSample_UserName", this._userNameInput.text);
+
+            AddText("Connecting...");
 
             // Create the Socket.IO manager
-            Manager = new SocketManager(new Uri("https://socket-io-chat.now.sh/socket.io/"), options);
+            Manager = new SocketManager(new Uri(address));
+
+            Manager.Socket.On(SocketIOEventTypes.Connect, (s, p, a) =>
+            {
+                AddText("Connected!");
+
+                Manager.Socket.Emit("add user", this._userNameInput.text);
+                this._input.interactable = true;
+            });
+
+            Manager.Socket.On(SocketIOEventTypes.Disconnect, (s, p, a) =>
+            {
+                AddText("Disconnected!");
+
+                SetPanels(true);
+                SetButtons(true, false);
+            });
 
             // Set up custom chat events
             Manager.Socket.On("login", OnLogin);
@@ -91,24 +151,21 @@ namespace BestHTTP.Examples
             Manager.Socket.On("stop typing", OnStopTyping);
 
             // The argument will be an Error object.
-            Manager.Socket.On(SocketIOEventTypes.Error, (socket, packet, args) => Debug.LogError(string.Format("Error: {0}", args[0].ToString())));
-            // We set SocketOptions' AutoConnect to false, so we have to call it manually.
-            Manager.Open();
+            Manager.Socket.On(SocketIOEventTypes.Error, (socket, packet, args) => {
+                Debug.LogError(string.Format("Error: {0}", args[0].ToString()));
+            });
+
+            SetButtons(false, true);
         }
 
-        void OnDestroy()
+        public void OnCloseButton()
         {
-            // Leaving this sample, close the socket
-            Manager.Close();
+            SetButtons(false, false);
+            this.Manager.Close();
         }
 
         void Update()
         {
-            // Go back to the demo selector
-            if (Input.GetKeyDown(KeyCode.Escape))
-                SampleSelector.SelectedSample.DestroyUnityObject();
-
-            // Stop typing if some time passed without typing
             if (typing)
             {
                 var typingTimer = DateTime.UtcNow;
@@ -120,108 +177,22 @@ namespace BestHTTP.Examples
                 }
             }
         }
-
-        void OnGUI()
-        {
-            switch (State)
-            {
-                case ChatStates.Login: DrawLoginScreen(); break;
-                case ChatStates.Chat: DrawChatScreen(); break;
-            }
-        }
-
+        
         #endregion
 
         #region Chat Logic
-
-        /// <summary>
-        /// Called from an OnGUI event to draw the Login Screen.
-        /// </summary>
-        void DrawLoginScreen()
+        
+        public void OnMessageInput(string textToSend)
         {
-            GUIHelper.DrawArea(GUIHelper.ClientArea, true, () =>
-                {
-                    GUILayout.BeginVertical();
-                    GUILayout.FlexibleSpace();
-
-                    GUIHelper.DrawCenteredText("What's your nickname?");
-                    userName = GUILayout.TextField(userName);
-
-                    if (GUILayout.Button("Join"))
-                        SetUserName();
-
-                    GUILayout.FlexibleSpace();
-                    GUILayout.EndVertical();
-                });
-        }
-
-        /// <summary>
-        /// Called from an OnGUI event to draw the Chat Screen.
-        /// </summary>
-        void DrawChatScreen()
-        {
-            GUIHelper.DrawArea(GUIHelper.ClientArea, true, () =>
-                {
-                    GUILayout.BeginVertical();
-                    scrollPos = GUILayout.BeginScrollView(scrollPos);
-                    GUILayout.Label(chatLog, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
-                    GUILayout.EndScrollView();
-
-                    string typing = string.Empty;
-
-                    if (typingUsers.Count > 0)
-                    {
-                        typing += string.Format("{0}", typingUsers[0]);
-
-                        for (int i = 1; i < typingUsers.Count; ++i)
-                            typing += string.Format(", {0}", typingUsers[i]);
-
-                        if (typingUsers.Count == 1)
-                            typing += " is typing!";
-                        else
-                            typing += " are typing!";
-                    }
-
-                    GUILayout.Label(typing);
-
-                    GUILayout.Label("Type here:");
-
-                    GUILayout.BeginHorizontal();
-                    message = GUILayout.TextField(message);
-
-                    if (GUILayout.Button("Send", GUILayout.MaxWidth(100)))
-                        SendMessage();
-                    GUILayout.EndHorizontal();
-
-                    if (GUI.changed)
-                        UpdateTyping();
-
-                    GUILayout.EndVertical();
-                });
-        }
-
-        void SetUserName()
-        {
-            if (string.IsNullOrEmpty(userName))
+            if ((!Input.GetKeyDown(KeyCode.KeypadEnter) && !Input.GetKeyDown(KeyCode.Return)) || string.IsNullOrEmpty(textToSend))
                 return;
 
-            State = ChatStates.Chat;
+            Manager.Socket.Emit("new message", textToSend);
 
-            Manager.Socket.Emit("add user", userName);
+            AddText(string.Format("{0}: {1}", this._userNameInput.text, textToSend));
         }
 
-        void SendMessage()
-        {
-            if (string.IsNullOrEmpty(message))
-                return;
-
-            Manager.Socket.Emit("new message", message);
-
-            chatLog += string.Format("{0}: {1}\n", userName, message);
-            message = string.Empty;
-        }
-
-        void UpdateTyping()
+        public void UpdateTyping(string textToSend)
         {
             if (!typing)
             {
@@ -237,9 +208,9 @@ namespace BestHTTP.Examples
             int numUsers = Convert.ToInt32(data["numUsers"]);
 
             if (numUsers == 1)
-                chatLog += "there's 1 participant\n";
+                this._participantsText.text = "there's 1 participant";
             else
-                chatLog += "there are " + numUsers + " participants\n";
+                this._participantsText.text = "there are " + numUsers + " participants";
         }
 
         void addChatMessage(Dictionary<string, object> data)
@@ -247,14 +218,18 @@ namespace BestHTTP.Examples
             var username = data["username"] as string;
             var msg = data["message"] as string;
 
-            chatLog += string.Format("{0}: {1}\n", username, msg);
+            AddText(string.Format("{0}: {1}", username, msg));
         }
 
         void AddChatTyping(Dictionary<string, object> data)
         {
             var username = data["username"] as string;
 
-            typingUsers.Add(username);
+            int idx = typingUsers.FindIndex((name) => name.Equals(username));
+            if (idx == -1)
+                typingUsers.Add(username);
+
+            SetTypingUsers();
         }
 
         void RemoveChatTyping(Dictionary<string, object> data)
@@ -264,6 +239,8 @@ namespace BestHTTP.Examples
             int idx = typingUsers.FindIndex((name) => name.Equals(username));
             if (idx != -1)
                 typingUsers.RemoveAt(idx);
+
+            SetTypingUsers();
         }
 
         #endregion
@@ -272,7 +249,7 @@ namespace BestHTTP.Examples
 
         void OnLogin(Socket socket, Packet packet, params object[] args)
         {
-            chatLog = "Welcome to Socket.IO Chat — \n";
+            AddText("Welcome to Socket.IO Chat");
 
             addParticipantsMessage(args[0] as Dictionary<string, object>);
         }
@@ -288,7 +265,7 @@ namespace BestHTTP.Examples
 
             var username = data["username"] as string;
 
-            chatLog += string.Format("{0} joined\n", username);
+            AddText(string.Format("{0} joined", username));
 
             addParticipantsMessage(data);
         }
@@ -299,7 +276,7 @@ namespace BestHTTP.Examples
 
             var username = data["username"] as string;
 
-            chatLog += string.Format("{0} left\n", username);
+            AddText(string.Format("{0} left", username));
 
             addParticipantsMessage(data);
         }
@@ -315,6 +292,56 @@ namespace BestHTTP.Examples
         }
 
         #endregion
+
+        private void AddText(string text)
+        {
+            GUIHelper.AddText(this._listItemPrefab, this._contentRoot, text, this._maxListItemEntries, this._scrollRect);
+        }
+
+        private void SetTypingUsers()
+        {
+            if (this.typingUsers.Count > 0)
+            {
+                System.Text.StringBuilder sb = new System.Text.StringBuilder(this.typingUsers[0], this.typingUsers.Count + 1);
+
+                for (int i = 1; i < this.typingUsers.Count; ++i)
+                    sb.AppendFormat(", {0}", this.typingUsers[i]);
+
+                if (this.typingUsers.Count == 1)
+                    sb.Append(" is typing!");
+                else
+                    sb.Append(" are typing!");
+
+                this._typingUsersText.text = sb.ToString();
+            }
+            else
+                this._typingUsersText.text = string.Empty;
+        }
+
+        private void SetPanels(bool login)
+        {
+            if (login)
+            {
+                this._loginRoot.gameObject.SetActive(true);
+                this._chatRoot.gameObject.SetActive(false);
+                this._input.interactable = false;
+            }
+            else
+            {
+                this._loginRoot.gameObject.SetActive(false);
+                this._chatRoot.gameObject.SetActive(true);
+                this._input.interactable = true;
+            }
+        }
+
+        private void SetButtons(bool connect, bool close)
+        {
+            if (this._connectButton != null)
+                this._connectButton.interactable = connect;
+
+            if (this._closeButton != null)
+                this._closeButton.interactable = close;
+        }
     }
 }
 

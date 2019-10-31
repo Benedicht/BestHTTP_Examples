@@ -1,101 +1,60 @@
-﻿using System;
+﻿using BestHTTP.Examples.Helpers;
+using System;
+using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace BestHTTP.Examples
 {
     public static class GUIHelper
     {
-        public static string BaseURL = "https://besthttpdemosite.azurewebsites.net";
-
-        private static GUIStyle centerAlignedLabel;
-        private static GUIStyle rightAlignedLabel;
-
-        public static Rect ClientArea;
-
-        private static void Setup()
+        // https://en.wikipedia.org/wiki/Binary_prefix
+        private static string[] prefixes = new string[] { " B", " KiB", " MiB", " GiB", " TiB" };
+        public static string GetBytesStr(double bytes, byte precision)
         {
-            // These has to be called from OnGUI
-            if (centerAlignedLabel == null)
+            int prefixIdx = 0;
+            while (bytes >= 1024)
             {
-                centerAlignedLabel = new GUIStyle(GUI.skin.label);
-                centerAlignedLabel.alignment = TextAnchor.MiddleCenter;
+                bytes = bytes / 1024;
+                prefixIdx++;
+            }
 
-                rightAlignedLabel = new GUIStyle(GUI.skin.label);
-                rightAlignedLabel.alignment = TextAnchor.MiddleRight;
+            return bytes.ToString("F" + precision) + prefixes[prefixIdx];
+        }
+
+        public static void RemoveChildren(RectTransform transform, int maxChildCount)
+        {
+            while (transform.childCount > maxChildCount)
+            {
+                var child = transform.GetChild(0);
+                child.SetParent(null);
+
+                GameObject.Destroy(child.gameObject);
             }
         }
 
-        public static void DrawArea(Rect area, bool drawHeader, Action action)
+        public static TextListItem AddText(TextListItem prefab, RectTransform contentRoot, string text, int maxEntries, ScrollRect scrollRect)
         {
-            Setup();
+            if (contentRoot == null)
+                return null;
 
-            // Draw background
-            GUI.Box(area, string.Empty);
-            GUILayout.BeginArea(area);
+            var listItem = GameObject.Instantiate<TextListItem>(prefab, contentRoot, false);
+            listItem.SetText(text);
 
-            if (drawHeader)
-            {
-                GUIHelper.DrawCenteredText(SampleSelector.SelectedSample.DisplayName);
-                GUILayout.Space(5);
-            }
+            GUIHelper.RemoveChildren(contentRoot, maxEntries);
 
-            if (action != null)
-                action();
+            if (scrollRect != null && scrollRect.isActiveAndEnabled)
+                scrollRect.StartCoroutine(ScrollToBottom(scrollRect));
 
-            GUILayout.EndArea();
+            return listItem;
         }
 
-        public static void DrawCenteredText(string msg)
+        public static IEnumerator ScrollToBottom(ScrollRect scrollRect)
         {
-            Setup();
+            yield return null;
 
-            GUILayout.BeginHorizontal();
-            GUILayout.FlexibleSpace();
-            GUILayout.Label(msg, centerAlignedLabel);
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
-        }
-
-        public static void DrawRow(string key, string value)
-        {
-            Setup();
-
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(key);
-            GUILayout.FlexibleSpace();
-            GUILayout.Label(value, rightAlignedLabel);
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
-        }
-    }
-
-    public class GUIMessageList
-    {
-        System.Collections.Generic.List<string> messages = new System.Collections.Generic.List<string>();
-        Vector2 scrollPos;
-
-        public void Draw()
-        {
-            Draw(Screen.width, 0);
-        }
-
-        public void Draw(float minWidth, float minHeight)
-        {
-            scrollPos = GUILayout.BeginScrollView(scrollPos, false, false, GUILayout.MinHeight(minHeight));
-            for (int i = 0; i < messages.Count; ++i)
-                GUILayout.Label(messages[i], GUILayout.MinWidth(minWidth));
-            GUILayout.EndScrollView();
-        }
-
-        public void Add(string msg)
-        {
-            messages.Add(msg);
-            scrollPos = new Vector2(scrollPos.x, float.MaxValue);
-        }
-
-        public void Clear()
-        {
-            messages.Clear();
+            if (scrollRect != null && scrollRect.isActiveAndEnabled)
+                scrollRect.normalizedPosition = new Vector2(0, 0);
         }
     }
 }

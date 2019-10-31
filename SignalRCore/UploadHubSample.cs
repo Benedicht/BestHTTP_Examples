@@ -1,11 +1,13 @@
 ﻿#if !BESTHTTP_DISABLE_SIGNALR_CORE
 
 using BestHTTP;
+using BestHTTP.Examples.Helpers;
 using BestHTTP.SignalRCore;
 using BestHTTP.SignalRCore.Encoders;
 using System;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace BestHTTP.Examples
 {
@@ -24,40 +26,44 @@ namespace BestHTTP.Examples
     /// This sample demonstrates redirection capabilities. The server will redirect a few times the client before
     /// routing it to the final endpoint.
     /// </summary>
-    public sealed class UploadHubSample : MonoBehaviour
+    public sealed class UploadHubSample : BestHTTP.Examples.Helpers.SampleBase
     {
-        // Server uri to connect to
-        readonly Uri URI = new Uri(GUIHelper.BaseURL + "/uploading");
+#pragma warning disable 0649
+
+        [SerializeField]
+        private string _path = "/uploading";
+
+        [SerializeField]
+        private ScrollRect _scrollRect;
+
+        [SerializeField]
+        private RectTransform _contentRoot;
+
+        [SerializeField]
+        private TextListItem _listItemPrefab;
+
+        [SerializeField]
+        private int _maxListItemEntries = 100;
+
+        [SerializeField]
+        private Button _connectButton;
+
+        [SerializeField]
+        private Button _closeButton;
+
+        [SerializeField]
+        private float _yieldWaitTime = 0.1f;
+
+#pragma warning restore
 
         // Instance of the HubConnection
-        public HubConnection hub;
+        private HubConnection hub;
 
-        Vector2 scrollPos;
-        public string uiText;
-
-        private const float YieldWaitTime = 0.1f;
-
-        void Start()
+        protected override void Start()
         {
-            HubOptions options = new HubOptions();
-            options.SkipNegotiation = true;
+            base.Start();
 
-            // Crete the HubConnection
-            hub = new HubConnection(URI, new JsonProtocol(new LitJsonEncoder()), options);
-
-            // Subscribe to hub events
-            hub.OnConnected += Hub_OnConnected;
-            hub.OnError += Hub_OnError;
-            hub.OnClosed += Hub_OnClosed;
-
-            hub.OnMessage += Hub_OnMessage;
-
-            hub.OnRedirected += Hub_Redirected;
-
-            // And finally start to connect to the server
-            hub.StartConnect();
-
-            uiText = "StartConnect called\n";
+            SetButtons(true, false);
         }
 
         void OnDestroy()
@@ -68,24 +74,43 @@ namespace BestHTTP.Examples
             }
         }
 
-        // Draw the text stored in the 'uiText' field
-        void OnGUI()
+        public void OnConnectButton()
         {
-            GUIHelper.DrawArea(GUIHelper.ClientArea, true, () =>
+            HubOptions options = new HubOptions();
+            options.SkipNegotiation = true;
+
+            // Crete the HubConnection
+            hub = new HubConnection(new Uri(base.sampleSelector.BaseURL + this._path), new JsonProtocol(new LitJsonEncoder()), options);
+
+            // Subscribe to hub events
+            hub.OnConnected += Hub_OnConnected;
+            hub.OnError += Hub_OnError;
+            hub.OnClosed += Hub_OnClosed;
+
+            hub.OnRedirected += Hub_Redirected;
+
+            // And finally start to connect to the server
+            hub.StartConnect();
+
+            AddText("StartConnect called");
+
+            SetButtons(false, false);
+        }
+
+        public void OnCloseButton()
+        {
+            if (this.hub != null)
             {
-                scrollPos = GUILayout.BeginScrollView(scrollPos, false, false);
-                GUILayout.BeginVertical();
+                this.hub.StartClose();
 
-                GUILayout.Label(uiText);
-
-                GUILayout.EndVertical();
-                GUILayout.EndScrollView();
-            });
+                AddText("StartClose called");
+                SetButtons(false, false);
+            }
         }
 
         private void Hub_Redirected(HubConnection hub, Uri oldUri, Uri newUri)
         {
-            uiText += string.Format("Hub connection redirected to '<color=green>{0}</color>'!\n", hub.Uri);
+            AddText(string.Format("Hub connection redirected to '<color=green>{0}</color>'!", hub.Uri));
         }
 
         /// <summary>
@@ -93,47 +118,65 @@ namespace BestHTTP.Examples
         /// </summary>
         private void Hub_OnConnected(HubConnection hub)
         {
-            uiText += "Hub Connected\n";
+            AddText("Hub Connected");
 
             StartCoroutine(UploadWord());
+
+            SetButtons(false, true);
         }
 
         private IEnumerator UploadWord()
         {
-            uiText += "\n<color=green>UploadWord</color>:\n";
-            var controller = hub.Upload<string, string>("UploadWord");
-            controller.OnComplete(result =>
+            AddText("<color=green>UploadWord</color>:");
+
+            var controller = hub.GetUpStreamController<string, string>("UploadWord");
+            controller.OnSuccess(result =>
                 {
-                    uiText += string.Format("-UploadWord completed, result: '<color=yellow>{0}</color>'\n", result.value);
+                    AddText(string.Format("UploadWord completed, result: '<color=yellow>{0}</color>'", result))
+                        .AddLeftPadding(20);
+                    AddText("");
 
                     StartCoroutine(ScoreTracker());
                 });
 
-            yield return new WaitForSeconds(YieldWaitTime);
-            controller.Upload("Hello ");
-            uiText += "-'<color=green>Hello </color>' uploaded!\n";
+            yield return new WaitForSeconds(_yieldWaitTime);
+            controller.UploadParam("Hello ");
 
-            yield return new WaitForSeconds(YieldWaitTime);
-            controller.Upload("World");
-            uiText += "-'<color=green>World</color>' uploaded!\n";
+            AddText("'<color=green>Hello </color>' uploaded!")
+                .AddLeftPadding(20);
 
-            yield return new WaitForSeconds(YieldWaitTime);
-            controller.Upload("!!");
-            uiText += "-'<color=green>!!</color>' uploaded!\n";
+            yield return new WaitForSeconds(_yieldWaitTime);
+            controller.UploadParam("World");
 
-            yield return new WaitForSeconds(YieldWaitTime);
+            AddText("'<color=green>World</color>' uploaded!")
+                .AddLeftPadding(20);
+
+            yield return new WaitForSeconds(_yieldWaitTime);
+            controller.UploadParam("!!");
+
+            AddText("'<color=green>!!</color>' uploaded!")
+                .AddLeftPadding(20);
+
+            yield return new WaitForSeconds(_yieldWaitTime);
+
             controller.Finish();
-            uiText += "-Sent upload finished message.\n";
-            yield return new WaitForSeconds(YieldWaitTime);
+
+            AddText("Sent upload finished message.")
+                .AddLeftPadding(20);
+
+            yield return new WaitForSeconds(_yieldWaitTime);
         }
 
         private IEnumerator ScoreTracker()
         {
-            uiText += "\n<color=green>ScoreTracker</color>:\n";
-            var controller = hub.UploadStream<string, int, int>("ScoreTracker");
-            controller.OnComplete(result =>
+            AddText("<color=green>ScoreTracker</color>:");
+            var controller = hub.GetUpStreamController<string, int, int>("ScoreTracker");
+
+            controller.OnSuccess(result =>
                 {
-                    uiText += string.Format("-ScoreTracker completed, result: '<color=yellow>{0}</color>'\n", result.value);
+                    AddText(string.Format("ScoreTracker completed, result: '<color=yellow>{0}</color>'", result))
+                        .AddLeftPadding(20);
+                    AddText("");
 
                     StartCoroutine(ScoreTrackerWithParameterChannels());
                 });
@@ -141,29 +184,36 @@ namespace BestHTTP.Examples
             const int numScores = 5;
             for (int i = 0; i < numScores; i++)
             {
-                yield return new WaitForSeconds(YieldWaitTime);
+                yield return new WaitForSeconds(_yieldWaitTime);
 
                 int p1 = UnityEngine.Random.Range(0, 10);
                 int p2 = UnityEngine.Random.Range(0, 10);
-                controller.Upload(p1, p2);
+                controller.UploadParam(p1, p2);
 
-                uiText += string.Format("-Score({0}/{1}) uploaded! p1's score: <color=green>{2}</color> p2's score: <color=green>{3}</color>\n", i + 1, numScores, p1, p2);
+                AddText(string.Format("Score({0}/{1}) uploaded! p1's score: <color=green>{2}</color> p2's score: <color=green>{3}</color>", i + 1, numScores, p1, p2))
+                    .AddLeftPadding(20);
             }
 
-            yield return new WaitForSeconds(YieldWaitTime);
+            yield return new WaitForSeconds(_yieldWaitTime);
             controller.Finish();
-            uiText += "-Sent upload finished message.\n";
-            yield return new WaitForSeconds(YieldWaitTime);
+
+            AddText("Sent upload finished message.")
+                .AddLeftPadding(20);
+
+            yield return new WaitForSeconds(_yieldWaitTime);
         }
 
         private IEnumerator ScoreTrackerWithParameterChannels()
         {
-            uiText += "\n<color=green>ScoreTracker using upload channels</color>:\n";
-            using (var controller = hub.UploadStream<string, int, int>("ScoreTracker"))
+            AddText("<color=green>ScoreTracker using upload channels</color>:");
+
+            using (var controller = hub.GetUpStreamController<string, int, int>("ScoreTracker"))
             {
-                controller.OnComplete(result =>
+                controller.OnSuccess(result =>
                 {
-                    uiText += string.Format("-ScoreTracker completed, result: '<color=yellow>{0}</color>'\n", result.value);
+                    AddText(string.Format("ScoreTracker completed, result: '<color=yellow>{0}</color>'", result))
+                        .AddLeftPadding(20);
+                    AddText("");
 
                     StartCoroutine(StreamEcho());
                 });
@@ -177,67 +227,77 @@ namespace BestHTTP.Examples
                 {
                     for (int i = 0; i < numScores; i++)
                     {
-                        yield return new WaitForSeconds(YieldWaitTime);
+                        yield return new WaitForSeconds(_yieldWaitTime);
 
                         int score = UnityEngine.Random.Range(0, 10);
                         player1param.Upload(score);
 
-                        uiText += string.Format("-Player 1's score({0}/{1}) uploaded! Score: <color=green>{2}</color>\n", i + 1, numScores, score);
+                        AddText(string.Format("Player 1's score({0}/{1}) uploaded! Score: <color=green>{2}</color>", i + 1, numScores, score))
+                            .AddLeftPadding(20);
                     }
                 }
 
-                uiText += "\n";
+                AddText("");
 
                 using (var player2param = controller.GetUploadChannel<int>(1))
                 {
                     for (int i = 0; i < numScores; i++)
                     {
-                        yield return new WaitForSeconds(YieldWaitTime);
+                        yield return new WaitForSeconds(_yieldWaitTime);
 
                         int score = UnityEngine.Random.Range(0, 10);
                         player2param.Upload(score);
 
-                        uiText += string.Format("-Player 2's score({0}/{1}) uploaded! Score: <color=green>{2}</color>\n", i + 1, numScores, score);
+                        AddText(string.Format("Player 2's score({0}/{1}) uploaded! Score: <color=green>{2}</color>", i + 1, numScores, score))
+                            .AddLeftPadding(20);
                     }
                 }
 
-                uiText += "\n-All scores uploaded!\n";
+                AddText("All scores uploaded!")
+                    .AddLeftPadding(20);
             }
-            yield return new WaitForSeconds(YieldWaitTime);
+            yield return new WaitForSeconds(_yieldWaitTime);
         }
 
         private IEnumerator StreamEcho()
         {
-            uiText += "\n<color=green>StreamEcho</color>:\n";
-            using (var controller = hub.UploadStreamWithDownStream<string, string>("StreamEcho"))
+            AddText("<color=green>StreamEcho</color>:");
+            using (var controller = hub.GetUpAndDownStreamController<string, string>("StreamEcho"))
             {
-                controller.OnComplete(result =>
+                controller.OnSuccess(result =>
                 {
-                    uiText += "-StreamEcho completed!\n";
+                    AddText("StreamEcho completed!")
+                        .AddLeftPadding(20);
+                    AddText("");
 
                     StartCoroutine(PersonEcho());
                 });
 
                 controller.OnItem(item =>
                 {
-                    uiText += string.Format("-Received from server: '<color=yellow>{0}</color>'\n", item.LastAdded);
+                    AddText(string.Format("Received from server: '<color=yellow>{0}</color>'", item))
+                        .AddLeftPadding(20);
                 });
 
                 const int numMessages = 5;
                 for (int i = 0; i < numMessages; i++)
                 {
-                    yield return new WaitForSeconds(YieldWaitTime);
+                    yield return new WaitForSeconds(_yieldWaitTime);
 
                     string message = string.Format("Message from client {0}/{1}", i + 1, numMessages);
-                    controller.Upload(message);
+                    controller.UploadParam(message);
 
-                    uiText += string.Format("-Sent message to the server: <color=green>{0}</color>\n", message);
+                    AddText(string.Format("Sent message to the server: <color=green>{0}</color>", message))
+                        .AddLeftPadding(20);
                 }
 
-                yield return new WaitForSeconds(YieldWaitTime);
+                yield return new WaitForSeconds(_yieldWaitTime);
             }
-            uiText += "-Upload finished!\n";
-            yield return new WaitForSeconds(YieldWaitTime);
+
+            AddText("Upload finished!")
+                .AddLeftPadding(20);
+
+            yield return new WaitForSeconds(_yieldWaitTime);
         }
 
         /// <summary>
@@ -245,24 +305,28 @@ namespace BestHTTP.Examples
         /// </summary>
         private IEnumerator PersonEcho()
         {
-            uiText += "\n<color=green>PersonEcho</color>:\n";
+            AddText("<color=green>PersonEcho</color>:");
 
-            using (var controller = hub.UploadStreamWithDownStream<Person, Person>("PersonEcho"))
+            using (var controller = hub.GetUpAndDownStreamController<Person, Person>("PersonEcho"))
             {
-                controller.OnComplete(result =>
+                controller.OnSuccess(result =>
                 {
-                    uiText += "-PersonEcho completed!\n";
+                    AddText("PersonEcho completed!")
+                        .AddLeftPadding(20);
+                    AddText("");
+                    AddText("All Done!");
                 });
 
                 controller.OnItem(item =>
                 {
-                    uiText += string.Format("-Received from server: '<color=yellow>{0}</color>'\n", item.LastAdded);
+                    AddText(string.Format("Received from server: '<color=yellow>{0}</color>'", item))
+                        .AddLeftPadding(20);
                 });
 
                 const int numMessages = 5;
                 for (int i = 0; i < numMessages; i++)
                 {
-                    yield return new WaitForSeconds(YieldWaitTime);
+                    yield return new WaitForSeconds(_yieldWaitTime);
 
                     Person person = new Person()
                     {
@@ -270,34 +334,28 @@ namespace BestHTTP.Examples
                         Age = 20 + i * 2
                     };
 
-                    controller.Upload(person);
+                    controller.UploadParam(person);
 
-                    uiText += string.Format("-Sent person to the server: <color=green>{0}</color>\n", person);
+                    AddText(string.Format("Sent person to the server: <color=green>{0}</color>", person))
+                        .AddLeftPadding(20);
                 }
 
-                yield return new WaitForSeconds(YieldWaitTime);
+                yield return new WaitForSeconds(_yieldWaitTime);
             }
-            uiText += "-Upload finished!\n";
+            AddText("Upload finished!")
+                .AddLeftPadding(20);
 
-            yield return new WaitForSeconds(YieldWaitTime);
+            yield return new WaitForSeconds(_yieldWaitTime);
         }
-
-        /// <summary>
-        /// This callback is called for every hub message. If false is returned, the plugin will cancel any further processing of the message.
-        /// </summary>
-        private bool Hub_OnMessage(HubConnection hub, BestHTTP.SignalRCore.Messages.Message message)
-        {
-            //uiText += string.Format("( Message received: {0} )\n", message.ToString());
-
-            return true;
-        }
-
+        
         /// <summary>
         /// This is called when the hub is closed after a StartClose() call.
         /// </summary>
         private void Hub_OnClosed(HubConnection hub)
         {
-            uiText += "Hub Closed\n";
+            AddText("Hub Closed");
+
+            SetButtons(true, false);
         }
 
         /// <summary>
@@ -305,7 +363,23 @@ namespace BestHTTP.Examples
         /// </summary>
         private void Hub_OnError(HubConnection hub, string error)
         {
-            uiText += "Hub Error: " + error + "\n";
+            AddText(string.Format("Hub Error: <color=red>{0}</color>", error));
+
+            SetButtons(true, false);
+        }
+
+        private void SetButtons(bool connect, bool close)
+        {
+            if (this._connectButton != null)
+                this._connectButton.interactable = connect;
+
+            if (this._closeButton != null)
+                this._closeButton.interactable = close;
+        }
+
+        private TextListItem AddText(string text)
+        {
+            return GUIHelper.AddText(this._listItemPrefab, this._contentRoot, text, this._maxListItemEntries, this._scrollRect);
         }
     }
 }

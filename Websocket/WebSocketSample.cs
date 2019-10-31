@@ -1,121 +1,116 @@
 ﻿#if !BESTHTTP_DISABLE_WEBSOCKET
 
+using BestHTTP.Examples.Helpers;
 using System;
-
+using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 
-namespace BestHTTP.Examples
+namespace BestHTTP.Examples.Websockets
 {
-    public class WebSocketSample : MonoBehaviour
+    public class WebSocketSample : BestHTTP.Examples.Helpers.SampleBase
     {
-        #region Private Fields
+#pragma warning disable 0649
 
-        /// <summary>
-        /// The WebSocket address to connect
-        /// </summary>
-        string address = "wss://echo.websocket.org";
+        [SerializeField]
+        [Tooltip("The WebSocket address to connect")]
+        private string address = "wss://echo.websocket.org";
 
-        /// <summary>
-        /// Default text to send
-        /// </summary>
-        string msgToSend = "Hello World!";
+        [SerializeField]
+        private InputField _input;
 
-        /// <summary>
-        /// Debug text to draw on the gui
-        /// </summary>
-        string Text = string.Empty;
+        [SerializeField]
+        private ScrollRect _scrollRect;
+
+        [SerializeField]
+        private RectTransform _contentRoot;
+
+        [SerializeField]
+        private TextListItem _listItemPrefab;
+
+        [SerializeField]
+        private int _maxListItemEntries = 100;
+
+        [SerializeField]
+        private Button _connectButton;
+
+        [SerializeField]
+        private Button _closeButton;
+
+#pragma warning restore
 
         /// <summary>
         /// Saved WebSocket instance
         /// </summary>
         WebSocket.WebSocket webSocket;
 
-        /// <summary>
-        /// GUI scroll position
-        /// </summary>
-        Vector2 scrollPos;
+        protected override void Start()
+        {
+            base.Start();
 
-        #endregion
-
-        #region Unity Events
+            SetButtons(true, false);
+            this._input.interactable = false;
+        }
 
         void OnDestroy()
         {
-            if (webSocket != null)
+            if (this.webSocket != null)
             {
-                webSocket.Close();
+                this.webSocket.Close();
+                this.webSocket = null;
             }
         }
 
-        void OnGUI()
+        public void OnConnectButton()
         {
-            GUIHelper.DrawArea(GUIHelper.ClientArea, true, () =>
-                {
-                    scrollPos = GUILayout.BeginScrollView(scrollPos);
-                    GUILayout.Label(Text);
-                    GUILayout.EndScrollView();
-
-                    GUILayout.Space(5);
-
-                    GUILayout.FlexibleSpace();
-
-                    address = GUILayout.TextField(address);
-
-                    if (webSocket == null && GUILayout.Button("Open Web Socket"))
-                    {
-                        // Create the WebSocket instance
-                        webSocket = new WebSocket.WebSocket(new Uri(address));
+            // Create the WebSocket instance
+            this.webSocket = new WebSocket.WebSocket(new Uri(address));
 
 #if !UNITY_WEBGL
-                        webSocket.StartPingThread = true;
+            this.webSocket.StartPingThread = true;
 
 #if !BESTHTTP_DISABLE_PROXY
-                        if (HTTPManager.Proxy != null)
-                            webSocket.InternalRequest.Proxy = new HTTPProxy(HTTPManager.Proxy.Address, HTTPManager.Proxy.Credentials, false);
+            if (HTTPManager.Proxy != null)
+                this.webSocket.InternalRequest.Proxy = new HTTPProxy(HTTPManager.Proxy.Address, HTTPManager.Proxy.Credentials, false);
 #endif
 #endif
 
-                        // Subscribe to the WS events
-                        webSocket.OnOpen += OnOpen;
-                        webSocket.OnMessage += OnMessageReceived;
-                        webSocket.OnClosed += OnClosed;
-                        webSocket.OnError += OnError;
+            // Subscribe to the WS events
+            this.webSocket.OnOpen += OnOpen;
+            this.webSocket.OnMessage += OnMessageReceived;
+            this.webSocket.OnClosed += OnClosed;
+            this.webSocket.OnError += OnError;
 
-                        // Start connecting to the server
-                        webSocket.Open();
+            // Start connecting to the server
+            this.webSocket.Open();
 
-                        Text += "Opening Web Socket...\n";
-                    }
+            AddText("Connecting...");
 
-                    if (webSocket != null && webSocket.IsOpen)
-                    {
-                        GUILayout.Space(10);
-
-                        GUILayout.BeginHorizontal();
-                        msgToSend = GUILayout.TextField(msgToSend);
-
-                        GUILayout.EndHorizontal();
-
-                        if (GUILayout.Button("Send", GUILayout.MaxWidth(70)))
-                        {
-                            Text += "Sending message...\n";
-
-                            // Send message to the server
-                            webSocket.Send(msgToSend);
-                        }
-
-                        GUILayout.Space(10);
-
-                        if (GUILayout.Button("Close"))
-                        {
-                            // Close the connection
-                            webSocket.Close(1000, "Bye!");
-                        }
-                    }
-                });
+            SetButtons(false, true);
+            this._input.interactable = false;
         }
 
-        #endregion
+        public void OnCloseButton()
+        {
+            AddText("Closing!");
+            // Close the connection
+            this.webSocket.Close(1000, "Bye!");
+
+            SetButtons(false, false);
+            this._input.interactable = false;
+        }
+       
+        public void OnInputField(string textToSend)
+        {
+            if ((!Input.GetKeyDown(KeyCode.KeypadEnter) && !Input.GetKeyDown(KeyCode.Return)) || string.IsNullOrEmpty(textToSend))
+                return;
+
+            AddText(string.Format("Sending message: <color=green>{0}</color>", textToSend))
+                .AddLeftPadding(20);
+
+            // Send message to the server
+            this.webSocket.Send(textToSend);
+        }
 
         #region WebSocket Event Handlers
 
@@ -124,7 +119,9 @@ namespace BestHTTP.Examples
         /// </summary>
         void OnOpen(WebSocket.WebSocket ws)
         {
-            Text += string.Format("-WebSocket Open!\n");
+            AddText("WebSocket Open!");
+
+            this._input.interactable = true;
         }
 
         /// <summary>
@@ -132,7 +129,8 @@ namespace BestHTTP.Examples
         /// </summary>
         void OnMessageReceived(WebSocket.WebSocket ws, string message)
         {
-            Text += string.Format("-Message received: {0}\n", message);
+            AddText(string.Format("Message received: <color=yellow>{0}</color>", message))
+                .AddLeftPadding(20);
         }
 
         /// <summary>
@@ -140,29 +138,40 @@ namespace BestHTTP.Examples
         /// </summary>
         void OnClosed(WebSocket.WebSocket ws, UInt16 code, string message)
         {
-            Text += string.Format("-WebSocket closed! Code: {0} Message: {1}\n", code, message);
+            AddText(string.Format("WebSocket closed! Code: {0} Message: {1}", code, message));
+
             webSocket = null;
+
+            SetButtons(true, false);
         }
 
         /// <summary>
         /// Called when an error occured on client side
         /// </summary>
-        void OnError(WebSocket.WebSocket ws, Exception ex)
+        void OnError(WebSocket.WebSocket ws, string error)
         {
-            string errorMsg = string.Empty;
-#if !UNITY_WEBGL || UNITY_EDITOR
-            if (ws.InternalRequest.Response != null)
-            {
-                errorMsg = string.Format("Status Code from Server: {0} and Message: {1}", ws.InternalRequest.Response.StatusCode, ws.InternalRequest.Response.Message);
-            }
-#endif
-
-            Text += string.Format("-An error occured: {0}\n", (ex != null ? ex.Message : "Unknown Error " + errorMsg));
+            AddText(string.Format("An error occured: <color=red>{0}</color>", error));
 
             webSocket = null;
+
+            SetButtons(true, false);
         }
 
         #endregion
+
+        private void SetButtons(bool connect, bool close)
+        {
+            if (this._connectButton != null)
+                this._connectButton.interactable = connect;
+
+            if (this._closeButton != null)
+                this._closeButton.interactable = close;
+        }
+
+        private TextListItem AddText(string text)
+        {
+            return GUIHelper.AddText(this._listItemPrefab, this._contentRoot, text, this._maxListItemEntries, this._scrollRect);
+        }
     }
 }
 

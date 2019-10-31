@@ -1,6 +1,6 @@
 ﻿#if !BESTHTTP_DISABLE_SIGNALR_CORE
 
-using BestHTTP;
+using BestHTTP.Examples;
 using BestHTTP.Examples.Helpers;
 using BestHTTP.SignalRCore;
 using BestHTTP.SignalRCore.Encoders;
@@ -11,15 +11,16 @@ using UnityEngine.UI;
 namespace BestHTTP.Examples
 {
     /// <summary>
-    /// This sample demonstrates redirection capabilities. The server will redirect a few times the client before
-    /// routing it to the final endpoint.
+    /// A sample to demonstrate Bearer token authorization on the server. The client will connect to the /redirect route
+    /// where it will receive the token and will receive the new url (/HubWithAuthorization) to connect to.
+    /// HubWithAuthorization without the token would throw an error.
     /// </summary>
-    public sealed class RedirectSample : BestHTTP.Examples.Helpers.SampleBase
+    public sealed class HubWithAuthorizationSample : BestHTTP.Examples.Helpers.SampleBase
     {
 #pragma warning disable 0649
 
         [SerializeField]
-        private string _path = "/redirect_sample";
+        private string _path = "/redirect";
 
         [SerializeField]
         private ScrollRect _scrollRect;
@@ -40,9 +41,9 @@ namespace BestHTTP.Examples
         private Button _closeButton;
 
 #pragma warning restore
-        
+
         // Instance of the HubConnection
-        public HubConnection hub;
+        HubConnection hub;
 
         protected override void Start()
         {
@@ -54,9 +55,7 @@ namespace BestHTTP.Examples
         void OnDestroy()
         {
             if (hub != null)
-            {
                 hub.StartClose();
-            }
         }
 
         public void OnConnectButton()
@@ -66,7 +65,6 @@ namespace BestHTTP.Examples
 
             // Crete the HubConnection
             hub = new HubConnection(new Uri(base.sampleSelector.BaseURL + this._path), new JsonProtocol(new LitJsonEncoder()));
-            hub.AuthenticationProvider = new RedirectLoggerAccessTokenAuthenticator(hub);
 
             // Subscribe to hub events
             hub.OnConnected += Hub_OnConnected;
@@ -86,17 +84,16 @@ namespace BestHTTP.Examples
         {
             if (hub != null)
             {
-                AddText("Calling StartClose");
-
                 hub.StartClose();
 
+                AddText("StartClose called");
                 SetButtons(false, false);
             }
         }
 
         private void Hub_Redirected(HubConnection hub, Uri oldUri, Uri newUri)
         {
-            AddText(string.Format("Hub connection redirected to '<color=green>{0}</color>'!", hub.Uri));
+            AddText(string.Format("Hub connection redirected to '<color=green>{0}</color>' with Access Token: '<color=green>{1}</color>'", hub.Uri, hub.NegotiationResult.AccessToken));
         }
 
         /// <summary>
@@ -105,14 +102,16 @@ namespace BestHTTP.Examples
         private void Hub_OnConnected(HubConnection hub)
         {
             AddText("Hub Connected");
+            SetButtons(false, true);
 
             // Call a parameterless function. We expect a string return value.
             hub.Invoke<string>("Echo", "Message from the client")
-                .OnSuccess(ret => AddText(string.Format(" 'Echo' returned: '{0}'", ret)));
+                .OnSuccess(ret => AddText(string.Format("'Echo' returned: '<color=yellow>{0}</color>'", ret)).AddLeftPadding(20));
 
-            SetButtons(false, true);
+            AddText("'<color=green>Message from the client</color>' sent!")
+                .AddLeftPadding(20);
         }
-
+        
         /// <summary>
         /// This is called when the hub is closed after a StartClose() call.
         /// </summary>
@@ -140,66 +139,9 @@ namespace BestHTTP.Examples
                 this._closeButton.interactable = close;
         }
 
-        private void AddText(string text)
+        private TextListItem AddText(string text)
         {
-            GUIHelper.AddText(this._listItemPrefab, this._contentRoot, text, this._maxListItemEntries, this._scrollRect);
-        }
-    }
-
-    public sealed class RedirectLoggerAccessTokenAuthenticator : IAuthenticationProvider
-    {
-        /// <summary>
-        /// No pre-auth step required for this type of authentication
-        /// </summary>
-        public bool IsPreAuthRequired { get { return false; } }
-
-#pragma warning disable 0067
-        /// <summary>
-        /// Not used event as IsPreAuthRequired is false
-        /// </summary>
-        public event OnAuthenticationSuccededDelegate OnAuthenticationSucceded;
-
-        /// <summary>
-        /// Not used event as IsPreAuthRequired is false
-        /// </summary>
-        public event OnAuthenticationFailedDelegate OnAuthenticationFailed;
-
-#pragma warning restore 0067
-
-        private HubConnection _connection;
-
-        public RedirectLoggerAccessTokenAuthenticator(HubConnection connection)
-        {
-            this._connection = connection;
-        }
-
-        /// <summary>
-        /// Not used as IsPreAuthRequired is false
-        /// </summary>
-        public void StartAuthentication()
-        { }
-
-        /// <summary>
-        /// Prepares the request by adding two headers to it
-        /// </summary>
-        public void PrepareRequest(BestHTTP.HTTPRequest request)
-        {
-            request.SetHeader("x-redirect-count", _connection.RedirectCount.ToString());
-
-            if (HTTPProtocolFactory.GetProtocolFromUri(request.CurrentUri) == SupportedProtocols.HTTP)
-                request.Uri = PrepareUri(request.Uri);
-        }
-
-        public Uri PrepareUri(Uri uri)
-        {
-            if (this._connection.NegotiationResult != null && !string.IsNullOrEmpty(this._connection.NegotiationResult.AccessToken))
-            {
-                string query = string.IsNullOrEmpty(uri.Query) ? "?" : uri.Query + "&";
-                UriBuilder uriBuilder = new UriBuilder(uri.Scheme, uri.Host, uri.Port, uri.AbsolutePath, query + "access_token=" + this._connection.NegotiationResult.AccessToken);
-                return uriBuilder.Uri;
-            }
-            else
-                return uri;
+            return GUIHelper.AddText(this._listItemPrefab, this._contentRoot, text, this._maxListItemEntries, this._scrollRect);
         }
     }
 }

@@ -3,65 +3,74 @@ using System.Collections;
 using System.Collections.Generic;
 
 using UnityEngine;
+using UnityEngine.UI;
 using BestHTTP;
 
-namespace BestHTTP.Examples
+namespace BestHTTP.Examples.HTTP
 {
-    public sealed class AssetBundleSample : MonoBehaviour
+    public sealed class AssetBundleSample : BestHTTP.Examples.Helpers.SampleBase
     {
-        /// <summary>
-        /// The url of the resource to download
-        /// </summary>
-        private Uri URI = new Uri(GUIHelper.BaseURL + "/AssetBundles/WebGL/demobundle.assetbundle");
+#pragma warning disable 0649
+
+        [Tooltip("The url of the resource to download")]
+        [SerializeField]
+        private string _path = "/AssetBundles/WebGL/demobundle.assetbundle";
+
+        [SerializeField]
+        private string _assetnameInBundle = "9443182_orig";
+
+        [SerializeField]
+        private Text _statusText;
+
+        [SerializeField]
+        private RawImage _rawImage;
+
+        [SerializeField]
+        private Button _downloadButton;
+
+#pragma warning restore
 
         #region Private Fields
-
+        
         /// <summary>
-        /// Debug status text
+        /// Reference to the request to be able to call Abort on it.
         /// </summary>
-        string status = "Waiting for user interaction";
+        HTTPRequest request;
 
         /// <summary>
         /// The downloaded and cached AssetBundle
         /// </summary>
         AssetBundle cachedBundle;
 
-        /// <summary>
-        /// The loaded texture from the AssetBundle
-        /// </summary>
-        Texture2D texture;
-
-        /// <summary>
-        /// A flag that indicates that we are processing the request/bundle to hide the "Start Download" button.
-        /// </summary>
-        bool downloading;
-
         #endregion
 
         #region Unity Events
 
-        void OnGUI()
+        protected override void Start()
         {
-            GUIHelper.DrawArea(GUIHelper.ClientArea, true, () =>
-                {
-                    GUILayout.Label("Status: " + status);
+            base.Start();
 
-                // Draw the texture from the downloaded bundle
-                if (texture != null)
-                        GUILayout.Box(texture, GUILayout.MaxHeight(256));
-
-                    if (!downloading && GUILayout.Button("Start Download"))
-                    {
-                        UnloadBundle();
-
-                        StartCoroutine(DownloadAssetBundle());
-                    }
-                });
+            this._statusText.text = "Waiting for user interaction";
         }
 
         void OnDestroy()
         {
+            if (this.request != null)
+                this.request.Abort();
+            this.request = null;
+
             UnloadBundle();
+        }
+
+        /// <summary>
+        /// GUI button callback
+        /// </summary>
+        public void OnStartDownloadButton()
+        {
+            this._downloadButton.enabled = false;
+            UnloadBundle();
+
+            StartCoroutine(DownloadAssetBundle());
         }
 
         #endregion
@@ -70,12 +79,10 @@ namespace BestHTTP.Examples
 
         IEnumerator DownloadAssetBundle()
         {
-            downloading = true;
-
             // Create and send our request
-            var request = new HTTPRequest(URI).Send();
+            request = new HTTPRequest(new Uri(this.sampleSelector.CDNUrl + this._path)).Send();
 
-            status = "Download started";
+            this._statusText.text = "Download started";
 
             // Wait while it's finishes and add some fancy dots to display something while the user waits for it.
             // A simple "yield return StartCoroutine(request);" would do the job too.
@@ -83,7 +90,7 @@ namespace BestHTTP.Examples
             {
                 yield return new WaitForSeconds(0.1f);
 
-                status += ".";
+                this._statusText.text += ".";
             }
 
             // Check the outcome of our request.
@@ -95,9 +102,12 @@ namespace BestHTTP.Examples
                     if (request.Response.IsSuccess)
                     {
 #if !BESTHTTP_DISABLE_CACHING
-                        status = string.Format("AssetBundle downloaded! Loaded from local cache: {0}", request.Response.IsFromCache.ToString());
+                        if (request.Response.IsFromCache)
+                            this._statusText.text = "Loaded from local cache!";
+                        else
+                            this._statusText.text = "Downloaded!";
 #else
-                        status = "AssetBundle downloaded!";
+                        this._statusText.text = "Downloaded!";
 #endif
 
                         // Start creating the downloaded asset bundle
@@ -111,46 +121,48 @@ namespace BestHTTP.Examples
                         // wait for it
                         yield return async;
 
+                        BestHTTP.PlatformSupport.Memory.BufferPool.Release(request.Response.Data);
+
                         // And process the bundle
                         yield return StartCoroutine(ProcessAssetBundle(async.assetBundle));
                     }
                     else
                     {
-                        status = string.Format("Request finished Successfully, but the server sent an error. Status Code: {0}-{1} Message: {2}",
+                        this._statusText.text = string.Format("Request finished Successfully, but the server sent an error. Status Code: {0}-{1} Message: {2}",
                                                         request.Response.StatusCode,
                                                         request.Response.Message,
                                                         request.Response.DataAsText);
-                        Debug.LogWarning(status);
+                        Debug.LogWarning(this._statusText.text);
                     }
 
                     break;
 
                 // The request finished with an unexpected error. The request's Exception property may contain more info about the error.
                 case HTTPRequestStates.Error:
-                    status = "Request Finished with Error! " + (request.Exception != null ? (request.Exception.Message + "\n" + request.Exception.StackTrace) : "No Exception");
-                    Debug.LogError(status);
+                    this._statusText.text = "Request Finished with Error! " + (request.Exception != null ? (request.Exception.Message + "\n" + request.Exception.StackTrace) : "No Exception");
+                    Debug.LogError(this._statusText.text);
                     break;
 
                 // The request aborted, initiated by the user.
                 case HTTPRequestStates.Aborted:
-                    status = "Request Aborted!";
-                    Debug.LogWarning(status);
+                    this._statusText.text = "Request Aborted!";
+                    Debug.LogWarning(this._statusText.text);
                     break;
 
                 // Connecting to the server is timed out.
                 case HTTPRequestStates.ConnectionTimedOut:
-                    status = "Connection Timed Out!";
-                    Debug.LogError(status);
+                    this._statusText.text = "Connection Timed Out!";
+                    Debug.LogError(this._statusText.text);
                     break;
 
                 // The request didn't finished in the given time.
                 case HTTPRequestStates.TimedOut:
-                    status = "Processing the request Timed Out!";
-                    Debug.LogError(status);
+                    this._statusText.text = "Processing the request Timed Out!";
+                    Debug.LogError(this._statusText.text);
                     break;
             }
 
-            downloading = false;
+            this._downloadButton.enabled = true;
         }
 
         /// <summary>
@@ -168,21 +180,23 @@ namespace BestHTTP.Examples
             // Start loading the asset from the bundle
             var asyncAsset =
 #if UNITY_5_1 || UNITY_5_2 || UNITY_5_3_OR_NEWER
-            cachedBundle.LoadAssetAsync("9443182_orig", typeof(Texture2D));
+            cachedBundle.LoadAssetAsync(this._assetnameInBundle, typeof(Texture2D));
 #else
 
-            cachedBundle.LoadAsync("9443182_orig", typeof(Texture2D));
+            cachedBundle.LoadAsync(this._assetnameInBundle, typeof(Texture2D));
 #endif
 
             // wait til load
             yield return asyncAsset;
 
             // get the texture
-            texture = asyncAsset.asset as Texture2D;
+            this._rawImage.texture = asyncAsset.asset as Texture2D;
         }
 
         void UnloadBundle()
         {
+            this._rawImage.texture = null;
+
             if (cachedBundle != null)
             {
                 cachedBundle.Unload(true);
