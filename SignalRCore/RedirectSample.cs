@@ -1,6 +1,7 @@
 ﻿#if !BESTHTTP_DISABLE_SIGNALR_CORE
 
 using BestHTTP;
+using BestHTTP.Connections;
 using BestHTTP.Examples.Helpers;
 using BestHTTP.SignalRCore;
 using BestHTTP.SignalRCore.Encoders;
