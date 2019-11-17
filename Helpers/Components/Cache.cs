@@ -44,8 +44,7 @@ namespace BestHTTP.Examples.Helpers.Components
 
         public void OnClearButtonClicked()
         {
-            //BestHTTP.Caching.HTTPCacheService.BeginClear();
-            BestHTTP.Caching.HTTPCacheService.BeginMaintainence(new Caching.HTTPCacheMaintananceParams(TimeSpan.FromDays(14), 50 * 1024 * 1024));
+            BestHTTP.Caching.HTTPCacheService.BeginClear();
         }
     }
 }

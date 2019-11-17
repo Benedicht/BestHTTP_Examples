@@ -40,6 +40,8 @@ namespace BestHTTP.Examples
 
         private void Start()
         {
+            Application.runInBackground = true;
+
             this._pluginVersion.text = "Version: " + HTTPManager.UserAgent;
 
             int logLevel = PlayerPrefs.GetInt("BestHTTP.HTTPManager.Logger.Level", (int)HTTPManager.Logger.Level);
