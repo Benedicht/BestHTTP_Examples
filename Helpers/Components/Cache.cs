@@ -38,13 +38,20 @@ namespace BestHTTP.Examples.Helpers.Components
 
         private void UpdateLabels()
         {
+#if !BESTHTTP_DISABLE_CACHING
             this._count.text = BestHTTP.Caching.HTTPCacheService.GetCacheEntityCount().ToString("N0");
             this._size.text = BestHTTP.Caching.HTTPCacheService.GetCacheSize().ToString("N0");
+#else
+            this._count.text = "0";
+            this._size.text = "0";
+#endif
         }
 
         public void OnClearButtonClicked()
         {
+#if !BESTHTTP_DISABLE_CACHING
             BestHTTP.Caching.HTTPCacheService.BeginClear();
+#endif
         }
     }
 }

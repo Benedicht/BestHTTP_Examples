@@ -41,6 +41,9 @@ namespace BestHTTP.Examples.Helpers.SelectorUI
         {
             // Sort examples by category
             this.sampleSelector.samples.Sort((a, b) => {
+                if (a == null || b == null)
+                    return 0;
+
                 int result = a.Category.CompareTo(b.Category);
                 if (result == 0)
                     result = a.DisplayName.CompareTo(b.DisplayName);
@@ -52,6 +55,9 @@ namespace BestHTTP.Examples.Helpers.SelectorUI
             for (int i = 0; i < this.sampleSelector.samples.Count; ++i)
             {
                 var examplePrefab = this.sampleSelector.samples[i];
+
+                if (examplePrefab == null)
+                    continue;
 
                 if (examplePrefab.BannedPlatforms.Contains(UnityEngine.Application.platform))
                     continue;

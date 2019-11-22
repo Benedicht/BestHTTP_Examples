@@ -73,8 +73,10 @@ namespace BestHTTP.Examples
                 HTTPManager.Proxy = null;
 #endif
 
+#if !BESTHTTP_DISABLE_CACHING
             // Remove too old cache entries.
             BestHTTP.Caching.HTTPCacheService.BeginMaintainence(new BestHTTP.Caching.HTTPCacheMaintananceParams(TimeSpan.FromDays(30), ulong.MaxValue));
+#endif
         }
 
         public void OnLogLevelChanged(int idx)

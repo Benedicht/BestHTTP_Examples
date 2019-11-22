@@ -1,4 +1,4 @@
-﻿#if !BESTHTTP_DISABLE_SIGNALR_CORE && !BESTHTTP_DISABLE_WEBSOCKET
+﻿#if !BESTHTTP_DISABLE_SIGNALR_CORE
 
 using BestHTTP;
 using BestHTTP.Examples.Helpers;
@@ -76,11 +76,8 @@ namespace BestHTTP.Examples
 
         public void OnConnectButton()
         {
-            HubOptions options = new HubOptions();
-            options.SkipNegotiation = true;
-
             // Crete the HubConnection
-            hub = new HubConnection(new Uri(base.sampleSelector.BaseURL + this._path), new JsonProtocol(new LitJsonEncoder()), options);
+            hub = new HubConnection(new Uri(base.sampleSelector.BaseURL + this._path), new JsonProtocol(new LitJsonEncoder()));
 
             // Subscribe to hub events
             hub.OnConnected += Hub_OnConnected;
@@ -88,6 +85,8 @@ namespace BestHTTP.Examples
             hub.OnClosed += Hub_OnClosed;
 
             hub.OnRedirected += Hub_Redirected;
+
+            hub.OnTransportEvent += (hub, transport, ev) => AddText(string.Format("Transport(<color=green>{0}</color>) event: <color=green>{1}</color>", transport.TransportType, ev));
 
             // And finally start to connect to the server
             hub.StartConnect();

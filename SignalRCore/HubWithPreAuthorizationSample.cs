@@ -1,4 +1,4 @@
-﻿#if !BESTHTTP_DISABLE_SIGNALR_CORE && !BESTHTTP_DISABLE_WEBSOCKET
+﻿#if !BESTHTTP_DISABLE_SIGNALR_CORE
 
 using BestHTTP;
 using BestHTTP.Connections;
@@ -75,6 +75,8 @@ namespace BestHTTP.Examples
             hub.OnError += Hub_OnError;
             hub.OnClosed += Hub_OnClosed;
 
+            hub.OnTransportEvent += (hub, transport, ev) => AddText(string.Format("Transport(<color=green>{0}</color>) event: <color=green>{1}</color>", transport.TransportType, ev));
+
             // And finally start to connect to the server
             hub.StartConnect();
 
@@ -115,7 +117,7 @@ namespace BestHTTP.Examples
 
             // Call a parameterless function. We expect a string return value.
             hub.Invoke<string>("Echo", "Message from the client")
-                .OnSuccess(ret => AddText(string.Format("'Echo' returned: '<color=yellow>{0}</color>'", ret)).AddLeftPadding(20));
+                .OnSuccess(ret => AddText(string.Format("'<color=green>Echo</color>' returned: '<color=yellow>{0}</color>'", ret)).AddLeftPadding(20));
 
             AddText("'<color=green>Message from the client</color>' sent!")
                 .AddLeftPadding(20);

@@ -1,7 +1,8 @@
-﻿#if !BESTHTTP_DISABLE_SIGNALR_CORE && !BESTHTTP_DISABLE_WEBSOCKET
+﻿#if !BESTHTTP_DISABLE_SIGNALR_CORE
 
 using System;
 using System.Collections.Generic;
+using BestHTTP.PlatformSupport.Memory;
 using BestHTTP.SignalRCore.Messages;
 
 namespace BestHTTP.SignalRCore.Encoders
@@ -58,7 +59,7 @@ namespace BestHTTP.SignalRCore.Encoders
         /// <summary>
         /// This function must return the encoded representation of the given message.
         /// </summary>
-        public byte[] EncodeMessage(Message message)
+        public BufferSegment EncodeMessage(Message message)
         {
             throw new NotImplementedException();
         }

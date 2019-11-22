@@ -1,4 +1,4 @@
-﻿#if !BESTHTTP_DISABLE_SIGNALR_CORE && !BESTHTTP_DISABLE_WEBSOCKET
+﻿#if !BESTHTTP_DISABLE_SIGNALR_CORE
 
 using System;
 using UnityEngine;
@@ -60,10 +60,9 @@ namespace BestHTTP.Examples
         {
             // Set up optional options
             HubOptions options = new HubOptions();
-            options.SkipNegotiation = false;
-
+            
             // Crete the HubConnection
-            hub = new HubConnection(new Uri(base.sampleSelector.BaseURL + this._path), new JsonProtocol(new LitJsonEncoder()), options);
+            hub = new HubConnection(new Uri(this.sampleSelector.BaseURL + this._path), new JsonProtocol(new LitJsonEncoder()), options);
 
             // Optionally add an authenticator
             //hub.AuthenticationProvider = new BestHTTP.SignalRCore.Authentication.HeaderAuthenticator("<generated jwt token goes here>");
@@ -72,7 +71,9 @@ namespace BestHTTP.Examples
             hub.OnConnected += Hub_OnConnected;
             hub.OnError += Hub_OnError;
             hub.OnClosed += Hub_OnClosed;
-            
+
+            hub.OnTransportEvent += (hub, transport, ev) => AddText(string.Format("Transport(<color=green>{0}</color>) event: <color=green>{1}</color>", transport.TransportType, ev));
+
             // Set up server callable functions
             hub.On("Send", (string arg) => AddText(string.Format("On '<color=green>Send</color>': '<color=yellow>{0}</color>'", arg)).AddLeftPadding(20));
             hub.On<Person>("Person", (person) => AddText(string.Format("On '<color=green>Person</color>': '<color=yellow>{0}</color>'", person)).AddLeftPadding(20));
@@ -106,7 +107,7 @@ namespace BestHTTP.Examples
         private void Hub_OnConnected(HubConnection hub)
         {
             SetButtons(false, true);
-            AddText("Hub Connected");
+            AddText(string.Format("Hub Connected with {0} transport", hub.Transport.TransportType.ToString()));
 
             // Call a server function with a string param. We expect no return value.
             hub.Send("Send", "my message");
