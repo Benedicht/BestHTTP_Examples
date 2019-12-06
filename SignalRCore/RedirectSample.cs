@@ -1,4 +1,4 @@
-﻿#if !BESTHTTP_DISABLE_SIGNALR_CORE
+#if !BESTHTTP_DISABLE_SIGNALR_CORE
 
 using BestHTTP;
 using BestHTTP.Connections;
@@ -65,8 +65,15 @@ namespace BestHTTP.Examples
             // Server side of this example can be found here:
             // https://github.com/Benedicht/BestHTTP_DemoSite/blob/master/BestHTTP_DemoSite/Hubs/
 
+            IProtocol protocol = null;
+#if BESTHTTP_SIGNALR_CORE_ENABLE_GAMEDEVWARE_MESSAGEPACK
+            protocol = new MessagePackProtocol();
+#else
+            protocol = new JsonProtocol(new LitJsonEncoder());
+#endif
+
             // Crete the HubConnection
-            hub = new HubConnection(new Uri(base.sampleSelector.BaseURL + this._path), new JsonProtocol(new LitJsonEncoder()));
+            hub = new HubConnection(new Uri(base.sampleSelector.BaseURL + this._path), protocol);
             hub.AuthenticationProvider = new RedirectLoggerAccessTokenAuthenticator(hub);
 
             // Subscribe to hub events
@@ -107,7 +114,7 @@ namespace BestHTTP.Examples
         /// </summary>
         private void Hub_OnConnected(HubConnection hub)
         {
-            AddText("Hub Connected");
+            AddText(string.Format("Hub Connected with <color=green>{0}</color> transport using the <color=green>{1}</color> encoder.", hub.Transport.TransportType.ToString(), hub.Protocol.Name));
 
             // Call a parameterless function. We expect a string return value.
             hub.Invoke<string>("Echo", "Message from the client")

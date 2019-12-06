@@ -1,12 +1,11 @@
-﻿#if !BESTHTTP_DISABLE_SIGNALR_CORE
+#if !BESTHTTP_DISABLE_SIGNALR_CORE && BESTHTTP_SIGNALR_CORE_ENABLE_NEWTONSOFT_JSON_DOTNET_ENCODER
 using System;
+using BestHTTP.PlatformSupport.Memory;
 
 namespace BestHTTP.SignalRCore.Encoders
 {
-    /*public sealed class JsonDotNetEncoder : BestHTTP.SignalRCore.IEncoder
+    public sealed class JsonDotNetEncoder : BestHTTP.SignalRCore.IEncoder
     {
-        public string Name { get { return "json"; } }
-
         public object ConvertTo(Type toType, object obj)
         {
             string json = Newtonsoft.Json.JsonConvert.SerializeObject(obj);
@@ -14,25 +13,25 @@ namespace BestHTTP.SignalRCore.Encoders
             return Newtonsoft.Json.JsonConvert.DeserializeObject(json, toType);
         }
 
-        public T DecodeAs<T>(string text)
+        public T DecodeAs<T>(BufferSegment buffer)
         {
-            return Newtonsoft.Json.JsonConvert.DeserializeObject<T>(text);
+            using (var reader = new System.IO.StreamReader(new System.IO.MemoryStream(buffer.Data, buffer.Offset, buffer.Count)))
+            using (var jsonReader = new Newtonsoft.Json.JsonTextReader(reader))
+                return new Newtonsoft.Json.JsonSerializer().Deserialize<T>(jsonReader);
         }
 
-        public T DecodeAs<T>(byte[] data)
+        public BufferSegment Encode<T>(T value)
         {
-            throw new NotImplementedException();
-        }
+            var json = Newtonsoft.Json.JsonConvert.SerializeObject(value);
 
-        public byte[] EncodeAsBinary<T>(T value)
-        {
-            throw new NotImplementedException();
-        }
+            int len = System.Text.Encoding.UTF8.GetByteCount(json);
+            byte[] buffer = BufferPool.Get(len + 1, true);
+            System.Text.Encoding.UTF8.GetBytes(json, 0, json.Length, buffer, 0);
 
-        public string EncodeAsText<T>(T value)
-        {
-            return Newtonsoft.Json.JsonConvert.SerializeObject(value);
+            buffer[len] = 0x1e;
+
+            return new BufferSegment(buffer, 0, len + 1);
         }
-    }*/
+    }
 }
 #endif

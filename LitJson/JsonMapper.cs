@@ -16,9 +16,6 @@ using System.Globalization;
 using System.IO;
 using System.Reflection;
 
-#if NETFX_CORE
-//using System.Reflection.IntrospectionExtensions;
-#endif
 
 namespace LitJson
 {
@@ -103,33 +100,33 @@ namespace LitJson
     public sealed class JsonMapper
     {
         #region Fields
-        private static int max_nesting_depth;
+        private static readonly int max_nesting_depth;
 
-        private static IFormatProvider datetime_format;
+        private static readonly IFormatProvider datetime_format;
 
-        private static IDictionary<Type, ExporterFunc> base_exporters_table;
-        private static IDictionary<Type, ExporterFunc> custom_exporters_table;
+        private static readonly IDictionary<Type, ExporterFunc> base_exporters_table;
+        private static readonly IDictionary<Type, ExporterFunc> custom_exporters_table;
 
-        private static IDictionary<Type,
+        private static readonly IDictionary<Type,
                 IDictionary<Type, ImporterFunc>> base_importers_table;
-        private static IDictionary<Type,
+        private static readonly IDictionary<Type,
                 IDictionary<Type, ImporterFunc>> custom_importers_table;
 
-        private static IDictionary<Type, ArrayMetadata> array_metadata;
+        private static readonly IDictionary<Type, ArrayMetadata> array_metadata;
         private static readonly object array_metadata_lock = new Object ();
 
-        private static IDictionary<Type,
+        private static readonly IDictionary<Type,
                 IDictionary<Type, MethodInfo>> conv_ops;
         private static readonly object conv_ops_lock = new Object ();
 
-        private static IDictionary<Type, ObjectMetadata> object_metadata;
+        private static readonly IDictionary<Type, ObjectMetadata> object_metadata;
         private static readonly object object_metadata_lock = new Object ();
 
-        private static IDictionary<Type,
+        private static readonly IDictionary<Type,
                 IList<PropertyMetadata>> type_properties;
         private static readonly object type_properties_lock = new Object ();
 
-        private static JsonWriter      static_writer;
+        private static readonly JsonWriter      static_writer;
         private static readonly object static_writer_lock = new Object ();
         #endregion
 
@@ -672,6 +669,11 @@ namespace LitJson
                 delegate (object obj, JsonWriter writer) {
                     writer.Write ((ulong) obj);
                 };
+
+            base_exporters_table[typeof(DateTimeOffset)] =
+                delegate (object obj, JsonWriter writer) {
+                    writer.Write(((DateTimeOffset)obj).ToString("yyyy-MM-ddTHH:mm:ss.fffffffzzz", datetime_format));
+                };
         }
 
         private static void RegisterBaseImporters ()
@@ -689,6 +691,12 @@ namespace LitJson
             };
             RegisterImporter (base_importers_table, typeof (int),
                               typeof (ulong), importer);
+
+            importer = delegate (object input) {
+                return Convert.ToInt64((int)input);
+            };
+            RegisterImporter(base_importers_table, typeof(int),
+                              typeof(long), importer);
 
             importer = delegate (object input) {
                 return Convert.ToSByte ((int) input);
@@ -750,6 +758,12 @@ namespace LitJson
             };
             RegisterImporter (base_importers_table, typeof (string),
                               typeof (DateTime), importer);
+
+            importer = delegate (object input) {
+                return DateTimeOffset.Parse((string)input, datetime_format);
+            };
+            RegisterImporter(base_importers_table, typeof(string),
+                typeof(DateTimeOffset), importer);
         }
 
         private static void RegisterImporter (

@@ -70,7 +70,7 @@ namespace BestHTTP.Examples.HTTP
         /// <summary>
         /// The fragment size that we will set to the request
         /// </summary>
-        protected int fragmentSize = HTTPResponse.MinBufferSize;
+        protected int fragmentSize = HTTPResponse.MinReadBufferSize;
 
         protected virtual long DownloadLength { get; set; }
 
@@ -86,7 +86,7 @@ namespace BestHTTP.Examples.HTTP
             this._startDownload.interactable = true;
             this._cancelDownload.interactable = false;
 
-            this._fragmentSizeSlider.value = (1024 * 1024 - HTTPResponse.MinBufferSize) / 1024;
+            this._fragmentSizeSlider.value = (1024 * 1024 - HTTPResponse.MinReadBufferSize) / 1024;
             this._fragmentSizeText.text = GUIHelper.GetBytesStr(1024 * 1024, 1);
         }
 
@@ -103,7 +103,7 @@ namespace BestHTTP.Examples.HTTP
 
         public void OnFragmentSizeSliderChanged(float value)
         {
-            this.fragmentSize = HTTPResponse.MinBufferSize + (int)value * 1024;
+            this.fragmentSize = HTTPResponse.MinReadBufferSize + (int)value * 1024;
             this._fragmentSizeText.text = GUIHelper.GetBytesStr(this.fragmentSize, 1);
         }
 
