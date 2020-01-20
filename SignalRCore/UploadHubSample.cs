@@ -11,17 +11,6 @@ using UnityEngine.UI;
 
 namespace BestHTTP.Examples
 {
-    sealed class Person
-    {
-        public string Name { get; set; }
-        public long Age { get; set; }
-
-        public override string ToString()
-        {
-            return string.Format("[Person Name: '{0}', Age: {1}]", this.Name, this.Age.ToString());
-        }
-    }
-
     /// <summary>
     /// This sample demonstrates redirection capabilities. The server will redirect a few times the client before
     /// routing it to the final endpoint.
