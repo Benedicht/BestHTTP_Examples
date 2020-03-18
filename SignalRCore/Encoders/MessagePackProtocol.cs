@@ -84,7 +84,7 @@ namespace BestHTTP.SignalRCore.Encoders
         public BufferSegment EncodeMessage(Message message)
         {
             var memBuffer = BufferPool.Get(256, true);
-            var stream = new BestHTTP.Extensions.BufferPoolMemoryStream(memBuffer, 0, memBuffer.Length, true, true, false);
+            var stream = new BestHTTP.Extensions.BufferPoolMemoryStream(memBuffer, 0, memBuffer.Length, true, true, false, true);
 
             // Write 5 bytes for placeholder for length prefix
             stream.WriteByte(0);
@@ -95,7 +95,13 @@ namespace BestHTTP.SignalRCore.Encoders
 
             var buffer = BufferPool.Get(MsgPackWriter.DEFAULT_BUFFER_SIZE, true);
 
-            var writer = new MsgPackWriter(stream, new SerializationContext { Options = SerializationOptions.None, EnumSerializerFactory = (enumType) => new EnumNumberSerializer(enumType) }, buffer);
+            var context = new SerializationContext {
+                Options = SerializationOptions.SuppressTypeInformation,
+                EnumSerializerFactory = (enumType) => new EnumNumberSerializer(enumType),
+                ExtensionTypeHandler = CustomMessagePackExtensionTypeHandler.Instance
+            };
+
+            var writer = new MsgPackWriter(stream, context, buffer);
 
             switch (message.type)
             {
@@ -251,14 +257,18 @@ namespace BestHTTP.SignalRCore.Encoders
             int offset = segment.Offset;
             while (offset < segment.Count)
             {
-                int length = ReadVarInt(segment.Data, ref offset);
+                int length = (int)ReadVarInt(segment.Data, ref offset);
 
                 using (var stream = new System.IO.MemoryStream(segment.Data, offset, length))
                 {
                     var buff = BufferPool.Get(MsgPackReader.DEFAULT_BUFFER_SIZE, true);
                     try
                     {
-                        var reader = new MsgPackReader(stream, new SerializationContext { Options = SerializationOptions.None }, Endianness.BigEndian, buff);
+                        var context = new SerializationContext {
+                            Options = SerializationOptions.SuppressTypeInformation,
+                            ExtensionTypeHandler = CustomMessagePackExtensionTypeHandler.Instance
+                        };
+                        var reader = new MsgPackReader(stream, context, Endianness.BigEndian, buff);
                         
                         reader.NextToken();
                         reader.NextToken();
@@ -444,8 +454,6 @@ namespace BestHTTP.SignalRCore.Encoders
 
         private object[] ReadArguments(MsgPackReader reader, string target)
         {
-            reader.NextToken();
-
             var subscription = this.Connection.GetSubscription(target);
 
             object[] args;
@@ -455,12 +463,14 @@ namespace BestHTTP.SignalRCore.Encoders
             }
             else
             {
+                reader.NextToken();
+
                 args = new object[subscription.callbacks[0].ParamTypes.Length];
                 for (int i = 0; i < subscription.callbacks[0].ParamTypes.Length; ++i)
                     args[i] = reader.ReadValue(subscription.callbacks[0].ParamTypes[i]);
-            }
 
             reader.NextToken();
+            }
 
             return args;
         }
@@ -502,16 +512,183 @@ namespace BestHTTP.SignalRCore.Encoders
             return offset;
         }
 
-        public static int ReadVarInt(byte[] data, ref int offset)
+        public static uint ReadVarInt(byte[] data, ref int offset)
         {
-            int num = 0;
+            var length = 0U;
+            var numBytes = 0;
+
+            byte byteRead;
             do
             {
-                num <<= 7;
-                num |= data[offset] & 0x7F;
-            } while ((data[offset++] & 0x80) != 0);
+                byteRead = data[offset + numBytes];
+                length = length | (((uint)(byteRead & 0x7f)) << (numBytes * 7));
+                numBytes++;
+            }
+            while (offset + numBytes < data.Length && ((byteRead & 0x80) != 0));
 
-            return num;
+            offset += numBytes;
+
+            return length;
+        }
+    }
+
+    public sealed class CustomMessagePackExtensionTypeHandler : MessagePackExtensionTypeHandler
+    {
+        public const int EXTENSION_TYPE_DATE_TIME = -1;
+        public const int DATE_TIME_SIZE = 8;
+
+        public const long BclSecondsAtUnixEpoch = 62135596800;
+        public const int NanosecondsPerTick = 100;
+        public static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        private static readonly Type[] DefaultExtensionTypes = new[] { typeof(DateTime) };
+        public static CustomMessagePackExtensionTypeHandler Instance = new CustomMessagePackExtensionTypeHandler();
+
+        public override IEnumerable<Type> ExtensionTypes
+        {
+            get { return DefaultExtensionTypes; }
+        }
+
+        
+        public override bool TryRead(sbyte type, ArraySegment<byte> data, out object value)
+        {
+            if (data.Array == null) throw new ArgumentNullException("data");
+
+            value = default(object);
+            switch (type)
+            {
+                case EXTENSION_TYPE_DATE_TIME:
+                    switch (data.Count)
+                    {
+                        case 4:
+                            {
+                                var intValue = unchecked((int)(FromBytes(data.Array, data.Offset, 4)));
+                                value = CustomMessagePackExtensionTypeHandler.UnixEpoch.AddSeconds(unchecked((uint)intValue));
+                                return true;
+                            }
+                        case 8:
+                            {
+                                long longValue = FromBytes(data.Array, data.Offset, 8);
+                                ulong ulongValue = unchecked((ulong)longValue);
+                                long nanoseconds = (long)(ulongValue >> 34);
+                                ulong seconds = ulongValue & 0x00000003ffffffffL;
+                                value = CustomMessagePackExtensionTypeHandler.UnixEpoch.AddSeconds(seconds).AddTicks(nanoseconds / CustomMessagePackExtensionTypeHandler.NanosecondsPerTick);
+                                return true;
+                            }
+                        case 12:
+                            {
+                                var intValue = unchecked((int)(FromBytes(data.Array, data.Offset, 4)));
+                                long longValue = FromBytes(data.Array, data.Offset, 8);
+
+                                var nanoseconds = unchecked((uint)intValue);
+                                value = CustomMessagePackExtensionTypeHandler.UnixEpoch.AddSeconds(longValue).AddTicks(nanoseconds / CustomMessagePackExtensionTypeHandler.NanosecondsPerTick);
+                                return true;
+                            }
+                        default:
+                            throw new Exception($"Length of extension was {data.Count}. Either 4, 8 or 12 were expected.");
+                    }
+                default:
+                    return false;
+            }
+        }
+        
+        public override bool TryWrite(object value, out sbyte type, ref ArraySegment<byte> data)
+        {
+            if (value == null)
+            {
+                type = 0;
+                return false;
+            }
+            else if (value is DateTime)
+            {
+                type = EXTENSION_TYPE_DATE_TIME;
+
+                var dateTime = (DateTime)(object)value;
+
+                // The spec requires UTC. Convert to UTC if we're sure the value was expressed as Local time.
+                // If it's Unspecified, we want to leave it alone since .NET will change the value when we convert
+                // and we simply don't know, so we should leave it as-is.
+                if (dateTime.Kind == DateTimeKind.Local)
+                {
+                    dateTime = dateTime.ToUniversalTime();
+                }
+
+                var secondsSinceBclEpoch = dateTime.Ticks / TimeSpan.TicksPerSecond;
+                var seconds = secondsSinceBclEpoch - CustomMessagePackExtensionTypeHandler.BclSecondsAtUnixEpoch;
+                var nanoseconds = (dateTime.Ticks % TimeSpan.TicksPerSecond) * CustomMessagePackExtensionTypeHandler.NanosecondsPerTick;
+
+                if ((seconds >> 34) == 0)
+                {
+                    var data64 = unchecked((ulong)((nanoseconds << 34) | seconds));
+                    if ((data64 & 0xffffffff00000000L) == 0)
+                    {
+                        // timestamp 32(seconds in 32-bit unsigned int)
+                        var data32 = (UInt32)data64;
+
+                        const int TIMESTAMP_SIZE = 4;
+
+                        if (data.Array == null || data.Count < TIMESTAMP_SIZE)
+                            data = new ArraySegment<byte>(new byte[TIMESTAMP_SIZE]);
+
+                        CopyBytesImpl(data32, 4, data.Array, data.Offset);
+
+                        if (data.Count != DATE_TIME_SIZE)
+                            data = new ArraySegment<byte>(data.Array, data.Offset, DATE_TIME_SIZE);
+                    }
+                    else
+                    {
+                        // timestamp 64(nanoseconds in 30-bit unsigned int | seconds in 34-bit unsigned int)
+                        const int TIMESTAMP_SIZE = 8;
+                        if (data.Array == null || data.Count < TIMESTAMP_SIZE)
+                            data = new ArraySegment<byte>(new byte[TIMESTAMP_SIZE]);
+
+                        CopyBytesImpl(unchecked((long)data64), 8, data.Array, data.Offset);
+
+                        if (data.Count != DATE_TIME_SIZE)
+                            data = new ArraySegment<byte>(data.Array, data.Offset, DATE_TIME_SIZE);
+                    }
+                }
+                else
+                {
+                    // timestamp 96( nanoseconds in 32-bit unsigned int | seconds in 64-bit signed int )
+
+                    const int TIMESTAMP_SIZE = 12;
+
+                    if (data.Array == null || data.Count < TIMESTAMP_SIZE)
+                        data = new ArraySegment<byte>(new byte[TIMESTAMP_SIZE]);
+
+                    CopyBytesImpl((uint)nanoseconds, 4, data.Array, data.Offset);
+                    CopyBytesImpl(seconds, 8, data.Array, data.Offset + 4);
+
+                    if (data.Count != DATE_TIME_SIZE)
+                        data = new ArraySegment<byte>(data.Array, data.Offset, DATE_TIME_SIZE);
+                }
+
+                return true;
+            }
+
+            type = default(sbyte);
+            return false;
+        }
+
+        private void CopyBytesImpl(long value, int bytes, byte[] buffer, int index)
+        {
+            var endOffset = index + bytes - 1;
+            for (var i = 0; i < bytes; i++)
+            {
+                buffer[endOffset - i] = unchecked((byte)(value & 0xff));
+                value = value >> 8;
+            }
+        }
+
+        private long FromBytes(byte[] buffer, int startIndex, int bytesToConvert)
+        {
+            long ret = 0;
+            for (var i = 0; i < bytesToConvert; i++)
+            {
+                ret = unchecked((ret << 8) | buffer[startIndex + i]);
+            }
+            return ret;
         }
     }
 }

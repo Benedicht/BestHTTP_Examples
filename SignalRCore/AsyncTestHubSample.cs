@@ -6,7 +6,9 @@ using BestHTTP.SignalRCore;
 using BestHTTP.SignalRCore.Encoders;
 using UnityEngine.UI;
 using BestHTTP.Examples.Helpers;
+#if CSHARP_7_OR_LATER
 using System.Threading.Tasks;
+#endif
 
 namespace BestHTTP.Examples
 {
