@@ -211,6 +211,9 @@ namespace BestHTTP.Examples
             else
                 return uri;
         }
+
+        public void Cancel()
+        { }
     }
 }
 

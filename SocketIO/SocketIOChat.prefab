@@ -1648,7 +1648,8 @@ MonoBehaviour:
     -Subscribing to Socket.IO events
 
     -Sending custom events to the server'
-  address: https://socket-io-chat.now.sh/socket.io/
+  BannedPlatforms: 
+  address: https://socketio-chat-h9jt.herokuapp.com/socket.io/
   _loginRoot: {fileID: 224637103119345230}
   _userNameInput: {fileID: 114100637061327060}
   _chatRoot: {fileID: 224727861648864504}

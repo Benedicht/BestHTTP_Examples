@@ -42,20 +42,25 @@ namespace BestHTTP.SignalRCore.Authentication
         /// </summary>
         public void PrepareRequest(BestHTTP.HTTPRequest request)
         {
-#if !UNITY_WEBGL
+#if !UNITY_WEBGL || UNITY_EDITOR
             request.SetHeader("Authorization", "Bearer " + this._credentials);
 #endif
         }
 
         public Uri PrepareUri(Uri uri)
         {
-#if UNITY_WEBGL
+#if UNITY_WEBGL && !UNITY_EDITOR
             string query = string.IsNullOrEmpty(uri.Query) ? "?" : uri.Query + "&";
             UriBuilder uriBuilder = new UriBuilder(uri.Scheme, uri.Host, uri.Port, uri.AbsolutePath, query + "access_token=" + this._credentials);
             return uriBuilder.Uri;
 #else
             return uri;
 #endif
+        }
+
+        public void Cancel()
+        {
+
         }
     }
 }

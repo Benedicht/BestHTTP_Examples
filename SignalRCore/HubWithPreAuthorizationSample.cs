@@ -183,9 +183,12 @@ namespace BestHTTP.Examples
 
 #pragma warning restore 0067
 
+        public string Token { get; private set; }
+
         private Uri authenticationUri;
 
-        public string Token { get; private set; }
+        private HTTPRequest authenticationRequest;
+        private bool isCancellationRequested;
 
         public PreAuthAccessTokenAuthenticator(Uri authUri)
         {
@@ -194,8 +197,8 @@ namespace BestHTTP.Examples
 
         public void StartAuthentication()
         {
-            var request = new HTTPRequest(this.authenticationUri, OnAuthenticationRequestFinished);
-            request.Send();
+            this.authenticationRequest = new HTTPRequest(this.authenticationUri, OnAuthenticationRequestFinished);
+            this.authenticationRequest.Send();
         }
 
         private void OnAuthenticationRequestFinished(HTTPRequest req, HTTPResponse resp)
@@ -206,6 +209,7 @@ namespace BestHTTP.Examples
                 case HTTPRequestStates.Finished:
                     if (resp.IsSuccess)
                     {
+                        this.authenticationRequest = null;
                         this.Token = resp.DataAsText;
                         if (this.OnAuthenticationSucceded != null)
                             this.OnAuthenticationSucceded(this);
@@ -241,6 +245,11 @@ namespace BestHTTP.Examples
 
         private void AuthenticationFailed(string reason)
         {
+            this.authenticationRequest = null;
+
+            if (this.isCancellationRequested)
+                return;
+
             if (this.OnAuthenticationFailed != null)
                 this.OnAuthenticationFailed(this, reason);
         }
@@ -264,6 +273,13 @@ namespace BestHTTP.Examples
             }
             else
                 return uri;
+        }
+
+        public void Cancel()
+        {
+            this.isCancellationRequested = true;
+            if (this.authenticationRequest != null)
+                this.authenticationRequest.Abort();
         }
     }
 }
