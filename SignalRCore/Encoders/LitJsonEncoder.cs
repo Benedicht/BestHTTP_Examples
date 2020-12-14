@@ -32,7 +32,7 @@ namespace BestHTTP.SignalRCore.Encoders
             int len = System.Text.Encoding.UTF8.GetByteCount(json);
             byte[] buffer = BufferPool.Get(len + 1, true);
             System.Text.Encoding.UTF8.GetBytes(json, 0, json.Length, buffer, 0);
-            buffer[len] = 0x1e;
+            buffer[len] = (byte)JsonProtocol.Separator;
             return new BufferSegment(buffer, 0, len + 1);
         }
 

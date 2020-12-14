@@ -370,18 +370,21 @@ namespace LitJson
             if (reader.Token == JsonToken.ArrayEnd)
                 return null;
 
+            Type underlying_type = Nullable.GetUnderlyingType(inst_type);
+            Type value_type = underlying_type ?? inst_type;
+
             if (reader.Token == JsonToken.Null) {
 
 #if NETFX_CORE
-                if (! inst_type.GetTypeInfo().IsClass)
+                if (inst_type.GetTypeInfo().IsClass || underlying_type != null)
 #else
-                if (! inst_type.IsClass)
+                if (inst_type.IsClass || underlying_type != null)
 #endif
+                    return null;
+
                     throw new JsonException (String.Format (
                             "Can't assign null to an instance of type {0}",
                             inst_type));
-
-                return null;
             }
 
             if (reader.Token == JsonToken.Double ||
@@ -393,19 +396,19 @@ namespace LitJson
                 Type json_type = reader.Value.GetType ();
 
 #if NETFX_CORE
-                if (inst_type.GetTypeInfo().IsAssignableFrom (json_type.GetTypeInfo()))
+                if (value_type.GetTypeInfo().IsAssignableFrom (json_type.GetTypeInfo()))
 #else
-                if (inst_type.IsAssignableFrom(json_type))
+                if (value_type.IsAssignableFrom(json_type))
 #endif
                     return reader.Value;
 
                 // If there's a custom importer that fits, use it
                 if (custom_importers_table.ContainsKey (json_type) &&
                     custom_importers_table[json_type].ContainsKey (
-                        inst_type)) {
+                        value_type)) {
 
                     ImporterFunc importer =
-                        custom_importers_table[json_type][inst_type];
+                        custom_importers_table[json_type][value_type];
 
                     return importer (reader.Value);
                 }
@@ -413,24 +416,24 @@ namespace LitJson
                 // Maybe there's a base importer that works
                 if (base_importers_table.ContainsKey (json_type) &&
                     base_importers_table[json_type].ContainsKey (
-                        inst_type)) {
+                        value_type)) {
 
                     ImporterFunc importer =
-                        base_importers_table[json_type][inst_type];
+                        base_importers_table[json_type][value_type];
 
                     return importer (reader.Value);
                 }
 
                 // Maybe it's an enum
 #if NETFX_CORE
-                if (inst_type.GetTypeInfo().IsEnum)
+                if (value_type.GetTypeInfo().IsEnum)
 #else
-                if (inst_type.IsEnum)
+                if (value_type.IsEnum)
 #endif
-                    return Enum.ToObject (inst_type, reader.Value);
+                    return Enum.ToObject (value_type, reader.Value);
 
                 // Try using an implicit conversion operator
-                MethodInfo conv_op = GetConvOp (inst_type, json_type);
+                MethodInfo conv_op = GetConvOp (value_type, json_type);
 
                 if (conv_op != null)
                     return conv_op.Invoke (null,
@@ -468,6 +471,8 @@ namespace LitJson
                     elem_type = inst_type.GetElementType ();
                 }
 
+                list.Clear();
+
                 while (true) {
                     object item = ReadValue (elem_type, reader);
                     if (item == null && reader.Token == JsonToken.ArrayEnd)
@@ -488,12 +493,12 @@ namespace LitJson
             } else if (reader.Token == JsonToken.ObjectStart) {
 
                 if (inst_type == typeof(System.Object))
-                    inst_type = typeof(Dictionary<string, object>);
+                    value_type = inst_type = typeof(Dictionary<string, object>);
 
-                AddObjectMetadata (inst_type);
-                ObjectMetadata t_data = object_metadata[inst_type];
+                AddObjectMetadata (value_type);
+                ObjectMetadata t_data = object_metadata[value_type];
 
-                instance = Activator.CreateInstance (inst_type);
+                instance = Activator.CreateInstance (value_type);
 
                 while (true) {
                     reader.Read ();
@@ -740,6 +745,11 @@ namespace LitJson
             RegisterImporter (base_importers_table, typeof (double),
                               typeof (decimal), importer);
 
+            importer = delegate (object input) {
+                return Convert.ToSingle((double)input);
+            };
+            RegisterImporter(base_importers_table, typeof(double),
+                typeof(float), importer);
 
             importer = delegate (object input) {
                 return Convert.ToUInt32 ((long) input);
@@ -810,6 +820,12 @@ namespace LitJson
                 return;
             }
 
+            if (obj is Single)
+            {
+                writer.Write((float)obj);
+                return;
+            }
+
             if (obj is Int32) {
                 writer.Write ((int) obj);
                 return;
@@ -845,11 +861,13 @@ namespace LitJson
                 return;
             }
 
-            if (obj is IDictionary) {
+            var iDictionary = obj as IDictionary;
+            if (iDictionary != null) {
                 writer.WriteObjectStart ();
-                foreach (DictionaryEntry entity in (IDictionary)obj)
+                foreach (DictionaryEntry entity in iDictionary)
                 {
-                    writer.WritePropertyName ((string) entity.Key);
+                    var propertyName = entity.Key as string ?? Convert.ToString(entity.Key, CultureInfo.InvariantCulture);
+                    writer.WritePropertyName (propertyName);
                     WriteValue (entity.Value, writer, writer_is_private,
                                 depth + 1);
                 }

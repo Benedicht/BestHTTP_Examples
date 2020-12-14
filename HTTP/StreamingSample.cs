@@ -115,7 +115,7 @@ namespace BestHTTP.Examples.HTTP
 
         protected virtual void SetupRequest()
         {
-            request = new HTTPRequest(new Uri(base.sampleSelector.CDNUrl + this._downloadPath), OnRequestFinished);
+            request = new HTTPRequest(new Uri(base.sampleSelector.BaseURL + this._downloadPath), OnRequestFinished);
 
 #if !BESTHTTP_DISABLE_CACHING
             // If we are writing our own file set it to true(disable), so don't duplicate it on the file-system

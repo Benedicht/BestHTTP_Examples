@@ -18,7 +18,7 @@ namespace BestHTTP.Examples
 
         [SerializeField]
         [Tooltip("The WebSocket address to connect")]
-        private string address = "https://socket-io-chat.now.sh/socket.io/";
+        private string address = "https://socketio-chat-h9jt.herokuapp.com/socket.io/";
 
         [Header("Login Details")]
         [SerializeField]

@@ -80,7 +80,7 @@ namespace BestHTTP.Examples.HTTP
         IEnumerator DownloadAssetBundle()
         {
             // Create and send our request
-            request = new HTTPRequest(new Uri(this.sampleSelector.CDNUrl + this._path)).Send();
+            request = new HTTPRequest(new Uri(this.sampleSelector.BaseURL + this._path)).Send();
 
             this._statusText.text = "Download started";
 

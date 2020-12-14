@@ -1,8 +1,9 @@
 ﻿#if !BESTHTTP_DISABLE_WEBSOCKET
 
-using BestHTTP.Examples.Helpers;
 using System;
-using System.Collections;
+
+using BestHTTP.Examples.Helpers;
+
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -66,7 +67,7 @@ namespace BestHTTP.Examples.Websockets
             // Create the WebSocket instance
             this.webSocket = new WebSocket.WebSocket(new Uri(address));
 
-#if !UNITY_WEBGL
+#if !UNITY_WEBGL || UNITY_EDITOR
             this.webSocket.StartPingThread = true;
 
 #if !BESTHTTP_DISABLE_PROXY

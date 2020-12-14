@@ -33,7 +33,9 @@ namespace BestHTTP.Examples.HTTP
 
         private byte savedMaxConnectionPerServer;
 
+        #if !BESTHTTP_DISABLE_CACHING
         private bool allDownloadedFromLocalCache;
+        #endif
 
         private List<HTTPRequest> activeRequests = new List<HTTPRequest>();
 
@@ -78,7 +80,7 @@ namespace BestHTTP.Examples.HTTP
                 this._images[i].texture = null;
 
                 // Construct the request
-                var request = new HTTPRequest(new Uri(this.sampleSelector.CDNUrl + this._path + this._imageNames[i]), ImageDownloaded);
+                var request = new HTTPRequest(new Uri(this.sampleSelector.BaseURL + this._path + this._imageNames[i]), ImageDownloaded);
 
                 // Set the Tag property, we can use it as a general storage bound to the request
                 request.Tag = this._images[i];
@@ -145,9 +147,11 @@ namespace BestHTTP.Examples.HTTP
             this.activeRequests.Remove(req);
             if (this.activeRequests.Count == 0)
             {
+#if !BESTHTTP_DISABLE_CACHING
                 if (this.allDownloadedFromLocalCache)
                     this._cacheLabel.text = "All images loaded from local cache!";
                 else
+#endif
                     this._cacheLabel.text = string.Empty;
             }
         }
