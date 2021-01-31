@@ -97,7 +97,7 @@ namespace BestHTTP.SignalRCore.Encoders
 
             var context = new SerializationContext {
                 Options = SerializationOptions.SuppressTypeInformation,
-                EnumSerializerFactory = (enumType) => new EnumNumberSerializer(enumType),
+                EnumSerializerFactory = (enumType) => new EnumSerializer(enumType),
                 ExtensionTypeHandler = CustomMessagePackExtensionTypeHandler.Instance
             };
 
