@@ -16,7 +16,7 @@ namespace BestHTTP
                     // The request finished without any problem.
                     case HTTPRequestStates.Finished:
                         if (resp.IsSuccess)
-                            tcs.TrySetResult(LitJson.JsonMapper.ToObject<T>(resp.DataAsText));
+                            tcs.TrySetResult(BestHTTP.JSON.LitJson.JsonMapper.ToObject<T>(resp.DataAsText));
                         else
                             tcs.TrySetException(HTTPRequestAsyncExtensions.CreateException("Request finished Successfully, but the server sent an error.", resp));
                         break;

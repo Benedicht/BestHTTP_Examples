@@ -11,6 +11,14 @@ using GameDevWare.Serialization.Serializers;
 
 namespace BestHTTP.SignalRCore.Encoders
 {
+    public sealed class MessagePackProtocolSerializationOptions
+    {
+        /// <summary>
+        /// A function that must return a TypeSerializer for the given Type. To serialize an enum it can return an EnumNumberSerializer (default) to serialize enums as numbers or EnumSerializer to serialize them as strings.
+        /// </summary>
+        public Func<Type, TypeSerializer> EnumSerializerFactory;
+    }
+
     /// <summary>
     /// IPRotocol implementation using the "Json & MessagePack Serialization" asset store package (https://assetstore.unity.com/packages/tools/network/json-messagepack-serialization-59918).
     /// </summary>
@@ -23,6 +31,19 @@ namespace BestHTTP.SignalRCore.Encoders
         public IEncoder Encoder { get; private set; }
 
         public HubConnection Connection { get; set; }
+
+        public MessagePackProtocolSerializationOptions Options { get; set; }
+
+        public MessagePackProtocol()
+            : this(new MessagePackProtocolSerializationOptions { EnumSerializerFactory = (enumType) => new EnumNumberSerializer(enumType) })
+        {
+            
+        }
+
+        public MessagePackProtocol(MessagePackProtocolSerializationOptions options)
+        {
+            this.Options = options;
+        }
 
         /// <summary>
         /// This function must convert all element in the arguments array to the corresponding type from the argTypes array.
@@ -97,7 +118,7 @@ namespace BestHTTP.SignalRCore.Encoders
 
             var context = new SerializationContext {
                 Options = SerializationOptions.SuppressTypeInformation,
-                EnumSerializerFactory = (enumType) => new EnumSerializer(enumType),
+                EnumSerializerFactory = this.Options.EnumSerializerFactory,
                 ExtensionTypeHandler = CustomMessagePackExtensionTypeHandler.Instance
             };
 
@@ -541,7 +562,7 @@ namespace BestHTTP.SignalRCore.Encoders
         public const int NanosecondsPerTick = 100;
         public static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        private static readonly Type[] DefaultExtensionTypes = new[] { typeof(DateTime) };
+        private static readonly Type[] DefaultExtensionTypes = new[] { typeof(DateTime), typeof(UnityEngine.Vector3) };
         public static CustomMessagePackExtensionTypeHandler Instance = new CustomMessagePackExtensionTypeHandler();
 
         public override IEnumerable<Type> ExtensionTypes

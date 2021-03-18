@@ -2,7 +2,7 @@
 
 using System.Collections.Generic;
 
-using LitJson;
+using BestHTTP.JSON.LitJson;
 
 namespace BestHTTP.SignalR.JsonEncoders
 {
