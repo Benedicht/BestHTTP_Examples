@@ -9,6 +9,20 @@ using BestHTTP.Examples.Helpers;
 
 namespace BestHTTP.Examples
 {
+    public enum MyEnum : int
+    {
+        None,
+        One,
+        Two
+    }
+
+    public sealed class Metadata
+    {
+        public string strData;
+        public int intData;
+        public MyEnum myEnum;
+    }
+
     // Server side of this example can be found here:
     // https://github.com/Benedicht/BestHTTP_DemoSite/blob/master/BestHTTP_DemoSite/Hubs/TestHub.cs
     public class TestHubSample : BestHTTP.Examples.Helpers.SampleBase
@@ -65,7 +79,7 @@ namespace BestHTTP.Examples
             protocol = new JsonProtocol(new LitJsonEncoder());
 #endif
             // Crete the HubConnection
-            hub = new HubConnection(new Uri(this.sampleSelector.BaseURL + this._path), protocol);
+            hub = new HubConnection(new Uri(base.sampleSelector.BaseURL + this._path), protocol);
 
             // Optionally add an authenticator
             //hub.AuthenticationProvider = new BestHTTP.SignalRCore.Authentication.HeaderAuthenticator("<generated jwt token goes here>");
@@ -111,6 +125,8 @@ namespace BestHTTP.Examples
         {
             SetButtons(false, true);
             AddText(string.Format("Hub Connected with <color=green>{0}</color> transport using the <color=green>{1}</color> encoder.", hub.Transport.TransportType.ToString(), hub.Protocol.Name));
+
+            hub.Send("SendMetadata", new Metadata() { intData = 123, strData = "meta data", myEnum = MyEnum.One });
 
             // Call a server function with a string param. We expect no return value.
             hub.Send("Send", "my message");

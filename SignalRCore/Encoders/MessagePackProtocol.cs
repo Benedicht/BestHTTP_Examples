@@ -1,13 +1,14 @@
 #if !BESTHTTP_DISABLE_SIGNALR_CORE && BESTHTTP_SIGNALR_CORE_ENABLE_GAMEDEVWARE_MESSAGEPACK
 
 using System;
-using System.Linq;
 using System.Collections.Generic;
 using BestHTTP.PlatformSupport.Memory;
 using BestHTTP.SignalRCore.Messages;
 using GameDevWare.Serialization;
 using GameDevWare.Serialization.MessagePack;
 using GameDevWare.Serialization.Serializers;
+
+using UnityEngine;
 
 namespace BestHTTP.SignalRCore.Encoders
 {
@@ -43,6 +44,38 @@ namespace BestHTTP.SignalRCore.Encoders
         public MessagePackProtocol(MessagePackProtocolSerializationOptions options)
         {
             this.Options = options;
+
+            GameDevWare.Serialization.Json.DefaultSerializers.Clear();
+            GameDevWare.Serialization.Json.DefaultSerializers.AddRange(new TypeSerializer[]
+            {
+                new BinarySerializer(),
+                new DateTimeOffsetSerializer(),
+                new DateTimeSerializer(),
+                new GuidSerializer(),
+                new StreamSerializer(),
+                new UriSerializer(),
+                new VersionSerializer(),
+                new TimeSpanSerializer(),
+                new DictionaryEntrySerializer(),
+
+                new BestHTTP.SignalRCore.Encoders.Vector2Serializer(),
+                new BestHTTP.SignalRCore.Encoders.Vector3Serializer(),
+                new BestHTTP.SignalRCore.Encoders.Vector4Serializer(),
+
+                new PrimitiveSerializer(typeof (bool)),
+                new PrimitiveSerializer(typeof (byte)),
+                new PrimitiveSerializer(typeof (decimal)),
+                new PrimitiveSerializer(typeof (double)),
+                new PrimitiveSerializer(typeof (short)),
+                new PrimitiveSerializer(typeof (int)),
+                new PrimitiveSerializer(typeof (long)),
+                new PrimitiveSerializer(typeof (sbyte)),
+                new PrimitiveSerializer(typeof (float)),
+                new PrimitiveSerializer(typeof (ushort)),
+                new PrimitiveSerializer(typeof (uint)),
+                new PrimitiveSerializer(typeof (ulong)),
+                new PrimitiveSerializer(typeof (string)),
+            });
         }
 
         /// <summary>
@@ -562,7 +595,7 @@ namespace BestHTTP.SignalRCore.Encoders
         public const int NanosecondsPerTick = 100;
         public static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        private static readonly Type[] DefaultExtensionTypes = new[] { typeof(DateTime), typeof(UnityEngine.Vector3) };
+        private static readonly Type[] DefaultExtensionTypes = new[] { typeof(DateTime) };
         public static CustomMessagePackExtensionTypeHandler Instance = new CustomMessagePackExtensionTypeHandler();
 
         public override IEnumerable<Type> ExtensionTypes
@@ -710,6 +743,119 @@ namespace BestHTTP.SignalRCore.Encoders
                 ret = unchecked((ret << 8) | buffer[startIndex + i]);
             }
             return ret;
+        }
+    }
+
+    // https://github.com/neuecc/MessagePack-CSharp/blob/13c299a5172c60154bae53395612af194c02d286/src/MessagePack.UnityClient/Assets/Scripts/MessagePack/Unity/Formatters.cs#L15
+    public sealed class Vector2Serializer : TypeSerializer
+    {
+        public override Type SerializedType { get { return typeof(Vector2); } }
+
+        public override object Deserialize(IJsonReader reader)
+        {
+            if (reader == null) throw new ArgumentNullException("reader");
+
+            if (reader.Token == JsonToken.Null)
+                return null;
+
+            var value = new Vector2();
+            reader.ReadArrayBegin();
+
+            int idx = 0;
+            while (reader.Token != JsonToken.EndOfArray)
+                value[idx++] = reader.ReadSingle();
+
+            reader.ReadArrayEnd(nextToken: false);
+
+            return value;
+        }
+
+        public override void Serialize(IJsonWriter writer, object value)
+        {
+            if (writer == null) throw new ArgumentNullException("writer");
+            if (value == null) throw new ArgumentNullException("value");
+
+            var vector2 = (Vector2)value;
+            writer.WriteArrayBegin(2);
+            writer.Write(vector2.x);
+            writer.Write(vector2.y);
+            writer.WriteArrayEnd();
+        }
+    }
+
+    // https://github.com/neuecc/MessagePack-CSharp/blob/13c299a5172c60154bae53395612af194c02d286/src/MessagePack.UnityClient/Assets/Scripts/MessagePack/Unity/Formatters.cs#L56
+    public sealed class Vector3Serializer : TypeSerializer
+    {
+        public override Type SerializedType { get { return typeof(Vector3); } }
+
+        public override object Deserialize(IJsonReader reader)
+        {
+            if (reader == null) throw new ArgumentNullException("reader");
+
+            if (reader.Token == JsonToken.Null)
+                return null;
+
+            var value = new Vector3();
+            reader.ReadArrayBegin();
+
+            int idx = 0;
+            while (reader.Token != JsonToken.EndOfArray)
+                value[idx++] = reader.ReadSingle();
+
+            reader.ReadArrayEnd(nextToken: false);
+
+            return value;
+        }
+
+        public override void Serialize(IJsonWriter writer, object value)
+        {
+            if (writer == null) throw new ArgumentNullException("writer");
+            if (value == null) throw new ArgumentNullException("value");
+
+            var vector3 = (Vector3)value;
+            writer.WriteArrayBegin(3);
+            writer.Write(vector3.x);
+            writer.Write(vector3.y);
+            writer.Write(vector3.z);
+            writer.WriteArrayEnd();
+        }
+    }
+
+    // https://github.com/neuecc/MessagePack-CSharp/blob/13c299a5172c60154bae53395612af194c02d286/src/MessagePack.UnityClient/Assets/Scripts/MessagePack/Unity/Formatters.cs#L102
+    public sealed class Vector4Serializer : TypeSerializer
+    {
+        public override Type SerializedType { get { return typeof(Vector4); } }
+
+        public override object Deserialize(IJsonReader reader)
+        {
+            if (reader == null) throw new ArgumentNullException("reader");
+
+            if (reader.Token == JsonToken.Null)
+                return null;
+
+            var value = new Vector4();
+            reader.ReadArrayBegin();
+
+            int idx = 0;
+            while (reader.Token != JsonToken.EndOfArray)
+                value[idx++] = reader.ReadSingle();
+
+            reader.ReadArrayEnd(nextToken: false);
+
+            return value;
+        }
+        public override void Serialize(IJsonWriter writer, object value)
+        {
+            if (writer == null) throw new ArgumentNullException("writer");
+            if (value == null) throw new ArgumentNullException("value");
+
+            var vector4 = (Vector4)value;
+            writer.WriteArrayBegin(4);
+            writer.Write(vector4.x);
+            writer.Write(vector4.y);
+            writer.Write(vector4.z);
+            writer.Write(vector4.z);
+            writer.WriteArrayEnd();
         }
     }
 }
