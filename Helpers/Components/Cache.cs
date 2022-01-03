@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using BestHTTP.Core;
 using UnityEngine;
@@ -8,7 +8,7 @@ namespace BestHTTP.Examples.Helpers.Components
 {
     public class Cache : MonoBehaviour
     {
-#pragma warning disable 0649
+#pragma warning disable 0649, 0169
         [SerializeField]
         private Text _count;
 

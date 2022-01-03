@@ -1,4 +1,4 @@
-﻿#if !BESTHTTP_DISABLE_SERVERSENT_EVENTS
+#if !BESTHTTP_DISABLE_SERVERSENT_EVENTS
 
 using System;
 using BestHTTP.Examples.Helpers;
@@ -136,10 +136,14 @@ namespace BestHTTP.Examples.ServerSentEvents
         }
     }
 
+    [PlatformSupport.IL2CPP.Preserve]
     sealed class DateTimeData
     {
 #pragma warning disable 0649
+        [PlatformSupport.IL2CPP.Preserve]
         public int eventid;
+
+        [PlatformSupport.IL2CPP.Preserve]
         public string datetime;
 #pragma warning restore
 

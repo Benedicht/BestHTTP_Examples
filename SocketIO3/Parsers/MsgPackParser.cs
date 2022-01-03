@@ -279,6 +279,8 @@ namespace BestHTTP.SocketIO3.Parsers
 
                         case JsonToken.BeginObject:
                             args = ReadParameters(socket, subscription, reader);
+                            if (subscription == null && args == null)
+                                SkipObject(reader);
                             break;
                     }
                     break;

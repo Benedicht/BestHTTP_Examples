@@ -64,10 +64,13 @@ namespace BestHTTP
         {
             var byteCount = encoding.GetByteCount(value);
             var buffer = BufferPool.Get(byteCount, true);
-            var stream = new BufferPoolMemoryStream(buffer, 0, byteCount);
+            var stream = new BufferPoolMemoryStream();
 
             encoding.GetBytes(value, 0, value.Length, buffer, 0);
 
+            stream.Write(buffer, 0, byteCount);
+
+            stream.Position = 0;
             AddStreamField(stream, fieldName, null, "text/plain; charset=" + encoding.WebName);
         }
 
@@ -89,7 +92,7 @@ namespace BestHTTP
             // Set up Content-Type head for the form.
             if (!string.IsNullOrEmpty(mimeType))
                 header.WriteLine("Content-Type: " + mimeType);
-            header.WriteLine("Content-Length: " + stream.Length.ToString());
+            //header.WriteLine("Content-Length: " + stream.Length.ToString());
             header.WriteLine();
             header.Position = 0;
 
