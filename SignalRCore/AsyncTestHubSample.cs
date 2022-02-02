@@ -73,8 +73,28 @@ namespace BestHTTP.Examples
         void OnConnectButton()
         {
 #if CSHARP_7_OR_LATER
+#if BESTHTTP_SIGNALR_CORE_ENABLE_MESSAGEPACK_CSHARP
+            try
+            {
+                MessagePack.Resolvers.StaticCompositeResolver.Instance.Register(
+                    MessagePack.Resolvers.DynamicEnumAsStringResolver.Instance,
+                    MessagePack.Unity.UnityResolver.Instance,
+                    //MessagePack.Unity.Extension.UnityBlitWithPrimitiveArrayResolver.Instance,
+                    //MessagePack.Resolvers.StandardResolver.Instance,
+                    MessagePack.Resolvers.ContractlessStandardResolver.Instance
+                );
+
+                var options = MessagePack.MessagePackSerializerOptions.Standard.WithResolver(MessagePack.Resolvers.StaticCompositeResolver.Instance);
+                MessagePack.MessagePackSerializer.DefaultOptions = options;
+            }
+            catch
+            { }
+#endif
+
             IProtocol protocol = null;
-#if BESTHTTP_SIGNALR_CORE_ENABLE_GAMEDEVWARE_MESSAGEPACK
+#if BESTHTTP_SIGNALR_CORE_ENABLE_MESSAGEPACK_CSHARP
+            protocol = new MessagePackCSharpProtocol();
+#elif BESTHTTP_SIGNALR_CORE_ENABLE_GAMEDEVWARE_MESSAGEPACK
             protocol = new MessagePackProtocol();
 #else
             protocol = new JsonProtocol(new LitJsonEncoder());
