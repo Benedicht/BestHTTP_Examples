@@ -62,16 +62,19 @@ namespace BestHTTP
 
         public void AddField(string fieldName, string value, System.Text.Encoding encoding)
         {
-            var byteCount = encoding.GetByteCount(value);
+            var enc = encoding ?? System.Text.Encoding.UTF8;
+            var byteCount = enc.GetByteCount(value);
             var buffer = BufferPool.Get(byteCount, true);
             var stream = new BufferPoolMemoryStream();
 
-            encoding.GetBytes(value, 0, value.Length, buffer, 0);
+            enc.GetBytes(value, 0, value.Length, buffer, 0);
 
             stream.Write(buffer, 0, byteCount);
 
             stream.Position = 0;
-            AddStreamField(stream, fieldName, null, "text/plain; charset=" + encoding.WebName);
+
+            string mime = encoding != null ? "text/plain; charset=" + encoding.WebName : null;
+            AddStreamField(stream, fieldName, null, mime);
         }
 
         public void AddStreamField(System.IO.Stream stream, string fieldName)
