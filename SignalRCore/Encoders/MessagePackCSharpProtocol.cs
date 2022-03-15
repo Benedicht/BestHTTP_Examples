@@ -83,7 +83,7 @@ namespace BestHTTP.SignalRCore.Encoders
                     writer.Write(2);
                     WriteHeaders(ref writer);
                     WriteString(ref writer, message.invocationId);
-                    WriteValue(ref writer, message.item);
+                    WriteValue(ref writer, bufferWriter, message.item);
 
                     break;
 
@@ -103,7 +103,7 @@ namespace BestHTTP.SignalRCore.Encoders
                     if (resultKind == 1) // error
                         WriteString(ref writer, message.error);
                     else if (resultKind == 3) // non-void
-                        WriteValue(ref writer, message.result);
+                        WriteValue(ref writer, bufferWriter, message.result);
 
                     break;
 
@@ -124,14 +124,14 @@ namespace BestHTTP.SignalRCore.Encoders
                     writer.WriteArrayHeader(message.arguments != null ? message.arguments.Length : 0);
                     if (message.arguments != null)
                         for (int i = 0; i < message.arguments.Length; ++i)
-                            WriteValue(ref writer, message.arguments[i]);
+                            WriteValue(ref writer, bufferWriter, message.arguments[i]);
 
                     if (message.streamIds != null)
                     {
                         writer.WriteArrayHeader(message.streamIds.Length);
 
                         for (int i = 0; i < message.streamIds.Length; ++i)
-                            WriteValue(ref writer, message.streamIds[i]);
+                            WriteValue(ref writer, bufferWriter, message.streamIds[i]);
                     }
 
                     break;
@@ -189,12 +189,16 @@ namespace BestHTTP.SignalRCore.Encoders
             return new BufferSegment(buffer, 5 - prefixBytes, contentLength + prefixBytes);
         }
 
-        private void WriteValue(ref MessagePackWriter writer, object item)
+        private void WriteValue(ref MessagePackWriter writer, BufferPoolBufferWriter bufferWriter, object item)
         {
             if (item == null)
                 writer.WriteNil();
             else
-                MessagePackSerializer.Serialize(item.GetType(), ref writer, item);
+            {
+                //MessagePackSerializer.Serialize(item.GetType(), ref writer, item);
+                writer.Flush();
+                MessagePackSerializer.Serialize(item.GetType(), bufferWriter, item);
+            }
         }
 
         private void WriteString(ref MessagePackWriter writer, string str)
@@ -389,7 +393,9 @@ namespace BestHTTP.SignalRCore.Encoders
             if (long.TryParse(invocationId, out longId))
             {
                 Type itemType = this.Connection.GetItemType(longId);
-                return MessagePackSerializer.Deserialize(itemType, ref reader);
+
+                return MessagePackSerializer.Deserialize(itemType, reader.ReadRaw());
+                //return MessagePackSerializer.Deserialize(itemType, ref reader);
             }
             else
             {
@@ -430,7 +436,10 @@ namespace BestHTTP.SignalRCore.Encoders
                 {
                     args = new object[subscription.callbacks[0].ParamTypes.Length];
                     for (int i = 0; i < subscription.callbacks[0].ParamTypes.Length; ++i)
-                        args[i] = MessagePackSerializer.Deserialize(subscription.callbacks[0].ParamTypes[i], ref reader);
+                    {
+                        args[i] = MessagePackSerializer.Deserialize(subscription.callbacks[0].ParamTypes[i], reader.ReadRaw());
+                        //args[i] = MessagePackSerializer.Deserialize(subscription.callbacks[0].ParamTypes[i], ref reader);
+                    }
                 }
                 else
                     args = null;
