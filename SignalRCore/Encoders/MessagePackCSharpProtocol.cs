@@ -195,7 +195,6 @@ namespace BestHTTP.SignalRCore.Encoders
                 writer.WriteNil();
             else
             {
-                //MessagePackSerializer.Serialize(item.GetType(), ref writer, item);
                 writer.Flush();
                 MessagePackSerializer.Serialize(item.GetType(), bufferWriter, item);
             }
@@ -395,7 +394,6 @@ namespace BestHTTP.SignalRCore.Encoders
                 Type itemType = this.Connection.GetItemType(longId);
 
                 return MessagePackSerializer.Deserialize(itemType, reader.ReadRaw());
-                //return MessagePackSerializer.Deserialize(itemType, ref reader);
             }
             else
             {
@@ -436,10 +434,7 @@ namespace BestHTTP.SignalRCore.Encoders
                 {
                     args = new object[subscription.callbacks[0].ParamTypes.Length];
                     for (int i = 0; i < subscription.callbacks[0].ParamTypes.Length; ++i)
-                    {
                         args[i] = MessagePackSerializer.Deserialize(subscription.callbacks[0].ParamTypes[i], reader.ReadRaw());
-                        //args[i] = MessagePackSerializer.Deserialize(subscription.callbacks[0].ParamTypes[i], ref reader);
-                    }
                 }
                 else
                     args = null;
